@@ -5,7 +5,7 @@
 Cómo usar este archivo:
 1. **Prompt de imagen** → pégalo en tu generador de imágenes (Midjourney, Nano Banana / Gemini, Flux, Leonardo, Ideogram…). Sube las **fichas de personaje** (ver `PERSONAJES.md`) como referencia para que salgan siempre iguales. El `--ar 9:16` es para Midjourney; en las demás elige formato vertical 9:16.
 2. **Prompt de animación** → sube la imagen generada a Kling, Hailuo, Veo, Runway o similar (imagen → vídeo) y pega este texto.
-3. Planos con diálogo **en cámara → lip-sync**: genera la voz con `VOCES.md` y aplica lip-sync al clip (función Lip Sync de Kling, Hedra, Sync o la que uses). Así se mueve la boca al hablar.
+3. En los planos con diálogo el prompt de animación ya pide la boca cerrada: la voz y el movimiento de la boca los añade después el motor de montaje.
 4. Si la herramienta genera clips de 5 o 10 s, recórtalos en el montaje a la duración indicada.
 
 **Prompt negativo** (si tu herramienta lo admite):
@@ -74,7 +74,7 @@ Medium wide shot. Lía (an anthropomorphic strawberry woman: her head is a real 
 
 **🎬 Prompt de animación:**
 ```
-Lía leans forward over the desk, talking urgently; Ortega stays leaning back; dust floats in the striped light. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Lía leans forward over the desk, talking urgently; Ortega stays leaning back; dust floats in the striped light. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -97,7 +97,7 @@ Medium close-up. Inspector Ortega (an anthropomorphic orange man in his fifties:
 
 **🎬 Prompt de animación:**
 ```
-Ortega leans back, sighs and speaks with a bored, dismissive expression. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Ortega leans back, sighs and speaks with a bored, dismissive expression. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -120,7 +120,7 @@ Medium close-up, slight low angle. Bruno (an anthropomorphic coconut man: his wh
 
 **🎬 Prompt de animación:**
 ```
-Bruno slams the sneaker on the desk; papers jump; he leans forward, angry. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Bruno slams the sneaker on the desk; papers jump; he leans forward, angry. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -143,7 +143,7 @@ Medium close-up. Inspector Ortega (an anthropomorphic orange man in his fifties:
 
 **🎬 Prompt de animación:**
 ```
-Ortega looks up coldly and speaks while his hand slowly slides an envelope under the folders. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Ortega looks up coldly and speaks while his hand slowly slides an envelope under the folders. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -184,7 +184,7 @@ Wide shot. Lía (an anthropomorphic strawberry woman: her head is a real glossy 
 
 **🎬 Prompt de animación:**
 ```
-The crowd moves around them; balloons sway; Lía talks to Bruno as they walk in, then both look up at the banner. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+The crowd moves around them; balloons sway; Lía talks to Bruno as they walk in, then both look up at the banner. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -207,7 +207,7 @@ Close-up, low angle. Lía (an anthropomorphic strawberry woman: her head is a re
 
 **🎬 Prompt de animación:**
 ```
-The crowd blurs past in slow motion while Lía stays frozen, her eyes filling with tears. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+The crowd blurs past in slow motion while Lía stays frozen, her eyes filling with tears. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -230,7 +230,7 @@ Medium two-shot. Bruno (an anthropomorphic coconut man: his whole head is a real
 
 **🎬 Prompt de animación:**
 ```
-Bruno holds Lía's shoulders and speaks softly but firmly; she takes a breath and nods. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Bruno holds Lía's shoulders and speaks softly but firmly; she takes a breath and nods. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -253,7 +253,7 @@ Medium wide shot. Don Vicente Cereza (an anthropomorphic cherry man: his head is
 
 **🎬 Prompt de animación:**
 ```
-Vicente opens his arms to welcome the crowd; Valeria smiles; camera flashes pop. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Vicente opens his arms to welcome the crowd; Valeria smiles; camera flashes pop. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -276,7 +276,7 @@ Medium shot. Valeria Cereza (an elegant anthropomorphic cherry woman: her head i
 
 **🎬 Prompt de animación:**
 ```
-Valeria walks gracefully toward the camera, holding out the spoon and speaking with a cold smile. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Valeria walks gracefully toward the camera, holding out the spoon and speaking with a cold smile. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -317,7 +317,7 @@ Close-up. Valeria Cereza (an elegant anthropomorphic cherry woman: her head is a
 
 **🎬 Prompt de animación:**
 ```
-Valeria leans in slowly and whispers, her smile never moving. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Valeria leans in slowly and whispers, her smile never moving. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -360,7 +360,7 @@ Medium dynamic shot. Lía (an anthropomorphic strawberry woman: her head is a re
 
 **🎬 Prompt de animación:**
 ```
-Lía slaps the spoon away; the blue ice cream flies in slow motion and splatters; customers gasp. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Lía slaps the spoon away; the blue ice cream flies in slow motion and splatters; customers gasp. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -383,7 +383,7 @@ Medium close-up. Don Vicente Cereza (an anthropomorphic cherry man: his head is 
 
 **🎬 Prompt de animación:**
 ```
-Vicente raises his palm to calm the crowd and speaks politely, never breaking his smile. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Vicente raises his palm to calm the crowd and speaks politely, never breaking his smile. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -448,7 +448,7 @@ Close-up. Lía (an anthropomorphic strawberry woman: her head is a real glossy r
 
 **🎬 Prompt de animación:**
 ```
-Lía reads, a tear rolls down her cheek, and she whispers; behind her the neon sign flickers on. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Lía reads, a tear rolls down her cheek, and she whispers; behind her the neon sign flickers on. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
@@ -471,7 +471,7 @@ Close-up, low angle. Bruno (an anthropomorphic coconut man: his whole head is a 
 
 **🎬 Prompt de animación:**
 ```
-Bruno raises his eyes toward the mall and speaks with determination; the neon glow pulses. The speaking character talks with natural mouth and lip movement, subtle head and eyebrow motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
+Bruno raises his eyes toward the mall and speaks with determination; the neon glow pulses. Mouth closed, not talking, subtle breathing and natural idle motion. Keep the characters' design, outfits and fruit textures exactly as in the image. Smooth, realistic cinematic motion, no morphing, no extra limbs.
 ```
 
 **🗣️ Voz:**
