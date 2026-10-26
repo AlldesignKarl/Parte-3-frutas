@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mi Panel</title>
+  <meta name="description" content="Batería, conexión, tareas de estudio y notas en tu móvil.">
+  <meta name="theme-color" content="#FBFBFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121318" media="(prefers-color-scheme: dark)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mi Panel">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main id="view" aria-live="polite"></main>
+
+  <nav class="tabbar" aria-label="Secciones">
+    <button class="tab" data-tab="estado" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3,13h8V3H3v10zM3,21h8v-6H3v6zM13,21h8V11h-8v10zM13,3v6h8V3h-8z"/></svg>
+      <span>Estado</span>
+    </button>
+    <button class="tab" data-tab="tareas" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21,5c-1.11,-0.35 -2.33,-0.5 -3.5,-0.5c-1.95,0 -4.05,0.4 -5.5,1.5c-1.45,-1.1 -3.55,-1.5 -5.5,-1.5S2.45,4.9 1,6v14.65c0,0.25 0.25,0.5 0.5,0.5c0.1,0 0.15,-0.05 0.25,-0.05C3.1,20.45 5.05,20 6.5,20c1.95,0 4.05,0.4 5.5,1.5c1.35,-0.85 3.8,-1.5 5.5,-1.5c1.65,0 3.35,0.3 4.75,1.05c0.1,0.05 0.15,0.05 0.25,0.05c0.25,0 0.5,-0.25 0.5,-0.5V6C22.4,5.55 21.75,5.25 21,5zM21,18.5c-1.1,-0.35 -2.3,-0.5 -3.5,-0.5c-1.7,0 -4.15,0.65 -5.5,1.5V8c1.35,-0.85 3.8,-1.5 5.5,-1.5c1.2,0 2.4,0.15 3.5,0.5V18.5z"/></svg>
+      <span>Tareas</span>
+    </button>
+    <button class="tab" data-tab="notas" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5,9.2h3V19H5V9.2zM10.6,5h2.8v14h-2.8V5zM16.2,13H19v6h-2.8v-6z"/></svg>
+      <span>Notas</span>
+    </button>
+  </nav>
+
+  <div id="snackbar" class="snackbar" role="status" hidden>
+    <span id="snackbar-text"></span>
+    <button id="snackbar-action" type="button" hidden></button>
+  </div>
+
+  <div id="overlay-root"></div>
+  <noscript>Mi Panel necesita JavaScript activado.</noscript>
+</body>
+</html>

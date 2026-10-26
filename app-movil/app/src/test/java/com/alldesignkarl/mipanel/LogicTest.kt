@@ -135,7 +135,7 @@ class LogicTest {
             g("Inglés", 10.0, 6),
         ).bySubject()
 
-        assertEquals(listOf("Historia", "Inglés", "Matematicas"), subjects.map { it.name })
+        assertEquals(listOf("Historia", "Inglés", "Matemáticas"), subjects.map { it.name })
         val mates = subjects.last()
         assertEquals(4.5, mates.average, 1e-9)
         assertEquals("4,5", Fmt.grade(mates.average))

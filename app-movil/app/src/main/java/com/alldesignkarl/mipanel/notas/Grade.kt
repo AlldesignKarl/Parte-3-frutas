@@ -52,7 +52,7 @@ fun List<Grade>.bySubject(): List<SubjectSummary> =
     groupBy { subjectKey(it.subject) }
         .map { (key, grades) ->
             val newestFirst = grades.sortedWith(compareByDescending<Grade> { it.date }.thenByDescending { it.createdAt })
-            val name = cleanSubjectName(grades.maxBy { it.createdAt }.subject)
+            val name = preferredName(grades)
             SubjectSummary(
                 key = key,
                 name = name,
@@ -61,6 +61,18 @@ fun List<Grade>.bySubject(): List<SubjectSummary> =
             )
         }
         .sortedWith { a, b -> spanishOrder.compare(a.name, b.name) }
+
+/** El nombre que más se ha escrito; si empatan, el que lleva tildes y, si no, el más reciente. */
+private fun preferredName(grades: List<Grade>): String =
+    grades.groupBy { cleanSubjectName(it.subject) }
+        .entries
+        .sortedWith(
+            compareByDescending<Map.Entry<String, List<Grade>>> { it.value.size }
+                .thenByDescending { entry -> entry.key.count { it.code > 127 } }
+                .thenByDescending { entry -> entry.value.maxOf { it.createdAt } }
+        )
+        .first()
+        .key
 
 /** Media general: la media de las medias de cada asignatura. */
 fun List<SubjectSummary>.overallAverage(): Double? =
