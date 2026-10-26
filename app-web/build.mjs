@@ -22,7 +22,8 @@ run(["app.js", "--bundle", "--minify", "--format=esm", "--target=chrome100", `--
 run(["styles.css", "--minify", `--outfile=${join(web, "styles.css")}`, "--log-level=warning"]);
 for (const f of ["index.html", "manifest.webmanifest", "vercel.json"]) copyFileSync(join(here, f), join(web, f));
 for (const f of readdirSync(join(here, "icons"))) copyFileSync(join(here, "icons", f), join(web, "icons", f));
-writeFileSync(join(web, "sw.js"), readFileSync(join(here, "sw.js"), "utf8").replace('"app.js", "logic.js",', '"app.js",'));
+writeFileSync(join(web, "sw.js"), readFileSync(join(here, "sw.js"), "utf8").replace('"app.js", "logic.js", "charts.js",', '"app.js",'));
+writeFileSync(join(web, ".nojekyll"), ""); // GitHub Pages: servir los archivos tal cual
 
 // Página de claude.ai: un solo archivo con el CSS y el JS dentro
 const js = run(["app.js", "--bundle", "--minify", "--format=esm", "--target=chrome100", "--define:__ARTIFACT__=true", "--log-level=warning"]);

@@ -15,3 +15,10 @@ sacar?").
 
 Lo que una web no puede hacer: leer la batería de los cascos, la señal WiFi en dBm, la temperatura o el
 consumo de la batería. Eso solo está en la app Android.
+
+## Publicada como app instalable
+
+La carpeta `docs/` (en la raíz del repositorio) es la versión web ya generada. Con GitHub Pages
+activado desde esa carpeta se abre en <https://alldesignkarl.github.io/Parte-3-frutas/> y Chrome la
+instala como app (menú ⋮ → Instalar aplicación). Para actualizarla: `node build.mjs /tmp/salida` y
+copiar `/tmp/salida/web/` en `docs/` (sin `vercel.json`).

@@ -2000,7 +2000,7 @@ initDevice();
 if (timer.running && timeLeft() <= 0) setTimeout(completePhase, 600);
 else ensureTicker();
 
-if (!ARTIFACT && "serviceWorker" in navigator && location.protocol === "https:") {
+if (!ARTIFACT && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
