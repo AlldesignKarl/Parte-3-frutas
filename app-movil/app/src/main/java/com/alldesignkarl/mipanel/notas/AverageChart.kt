@@ -92,7 +92,7 @@ fun AverageChart(subjects: List<SubjectSummary>, modifier: Modifier = Modifier) 
             for (tick in listOf(0.0, PASS_GRADE, MAX_GRADE)) {
                 drawLine(grid, Offset(x(tick), 0f), Offset(x(tick), plotBottom), strokeWidth = 1.dp.toPx())
                 val text = measurer.measure(if (tick == PASS_GRADE) "5 aprobado" else Fmt.grade(tick), axisStyle)
-                val left = (x(tick) - text.size.width / 2f).coerceIn(0f, size.width - text.size.width)
+                val left = (x(tick) - text.size.width / 2f).coerceAtMost(size.width - text.size.width).coerceAtLeast(0f)
                 drawText(text, topLeft = Offset(left, plotBottom + 4.dp.toPx()))
             }
 
