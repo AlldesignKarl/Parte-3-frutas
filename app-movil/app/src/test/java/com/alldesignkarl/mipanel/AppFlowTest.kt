@@ -1,7 +1,6 @@
 package com.alldesignkarl.mipanel
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -36,7 +35,7 @@ class AppFlowTest {
         rule.onNodeWithText("Tareas").performClick()
         rule.onNodeWithText("No tienes tareas").assertIsDisplayed()
 
-        rule.onNode(hasText("Nueva tarea") and hasClickAction()).performClick()
+        rule.onNodeWithContentDescription("Nueva tarea").performClick()
         rule.onNode(hasSetTextAction() and hasText("Qué tienes que hacer")).performTextInput("Estudiar Historia")
         rule.onNode(hasSetTextAction() and hasText("Páginas que hay que estudiar (opcional)")).performTextInput("12")
         rule.onNodeWithText("Guardar").performClick()
@@ -73,7 +72,7 @@ class AppFlowTest {
     }
 
     private fun addGrade(subject: String, value: String) {
-        rule.onNode(hasText("Añadir nota") and hasClickAction()).performClick()
+        rule.onNodeWithContentDescription("Añadir nota").performClick()
         rule.onNode(hasSetTextAction() and hasText("Asignatura")).performTextInput(subject)
         rule.onNode(hasSetTextAction() and hasText("Nota (de 0 a 10)")).performTextInput(value)
         rule.onNodeWithText("Guardar").performClick()

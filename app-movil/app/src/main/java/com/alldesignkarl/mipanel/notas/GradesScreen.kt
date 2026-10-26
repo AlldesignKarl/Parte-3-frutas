@@ -135,7 +135,8 @@ fun GradesContent(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { onAdd("") },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                // El texto del botón no se anuncia por accesibilidad: la descripción va en el icono.
+                icon = { Icon(Icons.Filled.Add, contentDescription = "Añadir nota") },
                 text = { Text("Añadir nota") },
             )
         },

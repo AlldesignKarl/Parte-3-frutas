@@ -242,7 +242,8 @@ fun TasksContent(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = actions.onAdd,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                // El texto del botón no se anuncia por accesibilidad: la descripción va en el icono.
+                icon = { Icon(Icons.Filled.Add, contentDescription = "Nueva tarea") },
                 text = { Text("Nueva tarea") },
             )
         },

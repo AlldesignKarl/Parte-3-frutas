@@ -1,12 +1,16 @@
 package com.alldesignkarl.mipanel
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.activity.ComponentActivity
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.alldesignkarl.mipanel.estado.BatteryInfo
 import com.alldesignkarl.mipanel.estado.BluetoothState
@@ -53,7 +57,7 @@ import java.time.LocalDate
 @Config(sdk = [34], qualifiers = "w400dp-h1500dp-xhdpi")
 class ScreenshotsTest {
     @get:Rule
-    val rule = createComposeRule()
+    val rule = createAndroidComposeRule<ComponentActivity>()
 
     private val today = LocalDate.now()
 
@@ -137,12 +141,15 @@ class ScreenshotsTest {
 
     @Test
     fun terminado() = capture("4-terminado", atMillis = 1_400) {
-        CelebrationContent(
-            task = task("Estudiar Historia (tema 3 al 5)", 120, 120, examIn = 3, created = 1)
-                .copy(completedAt = System.currentTimeMillis()),
-            today = today,
-            onDismiss = {},
-        )
+        // Fondo oscurecido como el del diálogo real.
+        Box(Modifier.fillMaxSize().background(Color(0x99000000))) {
+            CelebrationContent(
+                task = task("Estudiar Historia (tema 3 al 5)", 120, 120, examIn = 3, created = 1)
+                    .copy(completedAt = System.currentTimeMillis()),
+                today = today,
+                onDismiss = {},
+            )
+        }
     }
 
     @Test
@@ -204,7 +211,11 @@ class ScreenshotsTest {
             MiPanelTheme(darkTheme = dark, dynamicColor = false) { content() }
         }
         if (atMillis != null) rule.mainClock.advanceTimeBy(atMillis) else rule.waitForIdle()
-        val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
+        // Se dibuja la ventana directamente en un Bitmap (captureToImage espera un redibujado
+        // que en Robolectric no llega).
+        val view = rule.activity.window.decorView
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        rule.runOnUiThread { view.draw(Canvas(bitmap)) }
         val dir = File("build/capturas").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
