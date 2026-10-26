@@ -61,12 +61,28 @@ jobs:
       - name: Compilar el APK
         run: ./gradlew --no-daemon --stacktrace assembleRelease
 
-      - name: Tests (lógica y recorrido por la app)
-        run: ./gradlew --no-daemon testDebugUnitTest --tests '*LogicTest' --tests '*AppFlowTest'
-
       - name: Capturas de pantalla
         continue-on-error: true
         run: ./gradlew --no-daemon testDebugUnitTest --tests '*ScreenshotsTest'
+
+      # Las capturas se publican aparte (versión de prueba) para poder verlas aunque falle algún test.
+      - name: Publicar capturas
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          files=(app/build/capturas/*.png)
+          if [ ${#files[@]} -eq 0 ]; then echo "No hay capturas"; exit 0; fi
+          gh release delete mi-panel-capturas --yes --cleanup-tag || true
+          gh release create mi-panel-capturas "${files[@]}" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Capturas de Mi Panel (compilación $VERSION_CODE)" \
+            --notes "Capturas de cada pantalla con datos de ejemplo, generadas automáticamente."
+
+      - name: Tests (lógica y recorrido por la app)
+        run: ./gradlew --no-daemon testDebugUnitTest --tests '*LogicTest' --tests '*AppFlowTest'
 
       - name: Preparar APK
         if: success()

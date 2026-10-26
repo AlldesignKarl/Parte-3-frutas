@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -59,6 +61,14 @@ android {
         unitTests {
             isIncludeAndroidResources = true
         }
+    }
+}
+
+// Si un test falla, que el error completo salga en el log de GitHub Actions.
+tasks.withType<Test>().configureEach {
+    testLogging {
+        events("passed", "failed")
+        exceptionFormat = TestExceptionFormat.FULL
     }
 }
 
