@@ -17,6 +17,7 @@
   ],
   "shortcuts": [
     { "name": "Tareas", "url": "./?pestana=tareas", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Foco", "url": "./?pestana=foco", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Notas", "url": "./?pestana=notas", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

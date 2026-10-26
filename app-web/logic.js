@@ -264,3 +264,93 @@ export function completionLine(t, today) {
   }
   return parts.join(" · ");
 }
+
+// ---------------------------------------------------------------- Estadísticas de estudio
+
+/** Páginas estudiadas cada día de los últimos `n` días (el último es hoy), sumando todas las tareas. */
+export function studyByDay(tasks, n, today, focus = {}) {
+  const days = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const date = addDays(today, -i);
+    let pages = 0;
+    for (const t of tasks) pages += Math.max(0, (t.dailyLog && t.dailyLog[date]) || 0);
+    days.push({ date, pages, minutes: Math.max(0, focus[date] || 0) });
+  }
+  return days;
+}
+
+/** Días seguidos estudiando (páginas o minutos de foco). Si hoy aún no, cuenta hasta ayer. */
+export function studyStreak(tasks, today, focus = {}) {
+  const studied = (date) =>
+    (focus[date] || 0) > 0 || tasks.some((t) => ((t.dailyLog && t.dailyLog[date]) || 0) > 0);
+  let day = studied(today) ? today : addDays(today, -1);
+  let streak = 0;
+  while (studied(day) && streak < 3650) {
+    streak++;
+    day = addDays(day, -1);
+  }
+  return streak;
+}
+
+/** Exámenes que quedan (de tareas pendientes), del más cercano al más lejano. */
+export function upcomingExams(tasks, today) {
+  return tasks
+    .filter((t) => !isDone(t) && t.examDate && daysBetween(today, t.examDate) >= 0)
+    .sort((a, b) => (a.examDate < b.examDate ? -1 : a.examDate > b.examDate ? 1 : 0));
+}
+
+/** Etiqueta corta del día de la semana: "L", "M", "X"… */
+export function weekdayLetter(iso) {
+  return ["D", "L", "M", "X", "J", "V", "S"][isoToDate(iso).getDay()];
+}
+
+// ---------------------------------------------------------------- Notas: qué necesito y evolución
+
+/**
+ * Nota que hace falta en el próximo examen de una asignatura para que su media llegue a `target`.
+ * Devuelve { needed, status }: "done" si ya se tiene aunque se saque un 0, "impossible" si haría falta más de un 10.
+ */
+export function neededGrade(subject, target) {
+  const n = subject.grades.length;
+  const sum = subject.grades.reduce((s, g) => s + g.value, 0);
+  const needed = target * (n + 1) - sum;
+  if (needed <= 0) return { needed: 0, status: "done" };
+  if (needed > MAX_GRADE) return { needed, status: "impossible" };
+  return { needed: Math.ceil(needed * 100) / 100, status: "ok" };
+}
+
+/** Media general (de las medias de cada asignatura) después de cada nota, en orden de fecha. */
+export function averageTimeline(grades) {
+  const sorted = [...grades].sort((a, b) => (a.date === b.date ? a.createdAt - b.createdAt : a.date < b.date ? -1 : 1));
+  const points = [];
+  const seen = [];
+  for (const g of sorted) {
+    seen.push(g);
+    points.push({ date: g.date, value: overallAverage(bySubject(seen)), grade: g });
+  }
+  return points;
+}
+
+/** Notas de una asignatura de la más antigua a la más reciente (para su minigráfica). */
+export const subjectTrend = (subject) => [...subject.grades].reverse().map((g) => g.value);
+
+/** Nombre comercial a partir del código de modelo (Samsung y algunos más). */
+export function friendlyModel(code) {
+  if (!code) return null;
+  const c = code.toUpperCase();
+  const samsung = [
+    ["SM-S93", { 1: "Galaxy S25", 6: "Galaxy S25+", 8: "Galaxy S25 Ultra", 7: "Galaxy S25 Edge" }],
+    ["SM-S92", { 1: "Galaxy S24", 6: "Galaxy S24+", 8: "Galaxy S24 Ultra", 4: "Galaxy S24 FE" }],
+    ["SM-S91", { 1: "Galaxy S23", 6: "Galaxy S23+", 8: "Galaxy S23 Ultra" }],
+    ["SM-S90", { 1: "Galaxy S22", 6: "Galaxy S22+", 8: "Galaxy S22 Ultra" }],
+    ["SM-S71", { 1: "Galaxy S23 FE" }],
+  ];
+  for (const [prefix, models] of samsung) {
+    if (c.startsWith(prefix) && models[c[6]]) return `Samsung ${models[c[6]]}`;
+  }
+  const a = c.match(/^SM-A(\d{2})(\d)/);
+  if (a) return `Samsung Galaxy A${a[1]}${a[2] === "6" ? " 5G" : ""}`;
+  const z = { "SM-F94": "Galaxy Z Fold6", "SM-F74": "Galaxy Z Flip6", "SM-F95": "Galaxy Z Fold7", "SM-F76": "Galaxy Z Flip7", "SM-F93": "Galaxy Z Fold5", "SM-F73": "Galaxy Z Flip5" };
+  for (const [prefix, name] of Object.entries(z)) if (c.startsWith(prefix)) return `Samsung ${name}`;
+  return null;
+}

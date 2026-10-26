@@ -51,3 +51,37 @@ test("formatos", () => {
   assert.equal(L.fmtDateShort(today), "lun 26 oct");
   assert.equal(L.fmtDuration(135 * 60000), "2 h 15 min");
 });
+
+test("semana, racha y exámenes", () => {
+  const t = { ...study(40, 10, 3), dailyLog: { [today]: 5, [L.addDays(today, -1)]: 3, [L.addDays(today, -2)]: 4, [L.addDays(today, -4)]: 2 } };
+  const week = L.studyByDay([t], 7, today, { [L.addDays(today, -3)]: 25 });
+  assert.equal(week.length, 7);
+  assert.equal(week[6].date, today);
+  assert.equal(week[6].pages, 5);
+  assert.equal(week[3].minutes, 25);
+  // Hoy, ayer, anteayer (páginas) y hace 3 días (foco) seguidos; hace 4 también: 5 días
+  assert.equal(L.studyStreak([t], today, { [L.addDays(today, -3)]: 25 }), 5);
+  // Sin el foco de hace 3 días la racha se corta en 3
+  assert.equal(L.studyStreak([t], today), 3);
+  const exams = L.upcomingExams([{ ...study(10, 0, 9), id: "x" }, { ...study(10, 0, 2), id: "y" }, { ...study(10, 0, -1), id: "z" }], today);
+  assert.deepEqual(exams.map((e) => e.id), ["y", "x"]);
+  assert.equal(L.weekdayLetter(today), "L");
+});
+
+test("qué necesito sacar", () => {
+  const g = (value, i) => ({ id: String(i), subject: "Mates", value, description: "", date: today, createdAt: i });
+  const [mates] = L.bySubject([g(4, 1), g(5, 2)]);
+  assert.deepEqual(L.neededGrade(mates, 5), { needed: 6, status: "ok" });
+  assert.equal(L.neededGrade(mates, 9).status, "impossible");
+  const [buena] = L.bySubject([g(9, 1), g(10, 2)]);
+  assert.equal(L.neededGrade(buena, 5).status, "done");
+});
+
+test("evolución y modelo", () => {
+  const g = (subject, value, date, i) => ({ id: String(i), subject, value, description: "", date, createdAt: i });
+  const line = L.averageTimeline([g("Mates", 4, "2026-10-01", 1), g("Historia", 8, "2026-10-03", 2), g("Mates", 5, "2026-10-05", 3)]);
+  assert.deepEqual(line.map((p) => p.value), [4, 6, 6.25]);
+  assert.equal(L.friendlyModel("SM-S926B"), "Samsung Galaxy S24+");
+  assert.equal(L.friendlyModel("SM-A546B"), "Samsung Galaxy A54 5G");
+  assert.equal(L.friendlyModel("Pixel 8"), null);
+});

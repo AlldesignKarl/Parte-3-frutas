@@ -1,4 +1,5 @@
 import * as L from "./logic.js";
+import * as C from "./charts.js";
 
 // ================================================================ Utilidades
 
@@ -30,6 +31,14 @@ const ICON = {
   check: "M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM10,17l-5,-5 1.41,-1.41L10,14.17l7.59,-7.59L19,8l-9,9z",
   down: "M7.41,8.59L12,13.17l4.59,-4.58L18,10l-6,6 -6,-6 1.41,-1.41z",
   up: "M7.41,15.41L12,10.83l4.59,4.58L18,14l-6,-6 -6,6z",
+  timer: "M15,1H9v2h6V1zM11,14h2V8h-2v6zM19.03,7.39l1.42,-1.42c-0.43,-0.51 -0.9,-0.99 -1.41,-1.41l-1.42,1.42C16.07,4.74 14.12,4 12,4c-4.97,0 -9,4.03 -9,9s4.02,9 9,9 9,-4.03 9,-9c0,-2.12 -0.74,-4.07 -1.97,-5.61zM12,20c-3.87,0 -7,-3.13 -7,-7s3.13,-7 7,-7 7,3.13 7,7 -3.13,7 -7,7z",
+  play: "M8,5v14l11,-7z",
+  pause: "M6,19h4V5H6v14zM14,5v14h4V5h-4z",
+  reset: "M12,5V1L7,6l5,5V7c3.31,0 6,2.69 6,6s-2.69,6 -6,6 -6,-2.69 -6,-6H4c0,4.42 3.58,8 8,8s8,-3.58 8,-8 -3.58,-8 -8,-8z",
+  skip: "M6,18l8.5,-6L6,6v12zM16,6v12h2V6h-2z",
+  flame: "M13.5,0.67s0.74,2.65 0.74,4.8c0,2.06 -1.35,3.73 -3.41,3.73 -2.07,0 -3.63,-1.67 -3.63,-3.73l0.03,-0.36C5.21,7.51 4,10.62 4,14c0,4.42 3.58,8 8,8s8,-3.58 8,-8C20,8.61 17.41,3.8 13.5,0.67zM11.71,19c-1.78,0 -3.22,-1.4 -3.22,-3.14 0,-1.62 1.05,-2.76 2.81,-3.12 1.77,-0.36 3.6,-1.21 4.62,-2.58 0.39,1.29 0.59,2.65 0.59,4.04 0,2.65 -2.15,4.8 -4.8,4.8z",
+  target: "M12,2C6.49,2 2,6.49 2,12s4.49,10 10,10 10,-4.49 10,-10S17.51,2 12,2zM12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8zM12,7c-2.76,0 -5,2.24 -5,5s2.24,5 5,5 5,-2.24 5,-5 -2.24,-5 -5,-5zM12,15c-1.66,0 -3,-1.34 -3,-3s1.34,-3 3,-3 3,1.34 3,3 -1.34,3 -3,3z",
+  trend: "M16,6l2.29,2.29 -4.88,4.88 -4,-4L2,16.59 3.41,18l6,-6 4,4 6.3,-6.29L22,12V6z",
   bluetooth: "M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41V22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59V5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z",
 };
 const svg = (name, cls = "") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[name]}"/></svg>`;
@@ -42,11 +51,14 @@ function topbar(title, actions = "") {
 
 // Las tarjetas entran con una animación solo al cambiar de pestaña, no en cada +1.
 let animateNext = true;
+let animating = true; // el render en curso anima las gráficas
 function stackClass() {
+  animating = animateNext;
   const cls = animateNext ? "stack" : "stack still";
   animateNext = false;
   return cls;
 }
+const chartClass = () => (animating ? "chart anim" : "chart");
 
 function ring(pct, style = "") {
   return `<div class="ring" style="--p:${Math.max(0, Math.min(100, pct))};${style}"></div>`;
@@ -82,8 +94,13 @@ const state = {
   tab: storage.get("mipanel:pestana", "estado"),
   tasks: [],
   grades: [],
+  focus: {}, // minutos de foco por día: { "2026-10-26": 50 }
   showDone: false,
   selectedSubject: null,
+  selectedDay: null,
+  selectedFocusDay: null,
+  selectedPoint: null,
+  target: storage.get("mipanel:objetivo", 5),
   loading: ARTIFACT, // en claude.ai se espera a la cuenta antes de pintar "no tienes tareas"
   where: ARTIFACT ? "cloud" : "local",
 };
@@ -92,16 +109,20 @@ function loadData() {
   const data = storage.get(DATA_KEY, {});
   state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
   state.grades = Array.isArray(data.grades) ? data.grades : [];
+  state.focus = isPlainObject(data.focus) ? data.focus : {};
 }
+
+const isPlainObject = (v) => v != null && typeof v === "object" && !Array.isArray(v);
+const DATA_KEYS = ["tasks", "grades", "focus"];
 
 let persistAsked = false;
 function saveData() {
   if (state.where === "cloud") {
-    cloud.dirty.tasks = cloud.dirty.grades = true;
+    DATA_KEYS.forEach((k) => (cloud.dirty[k] = true));
     flushCloud();
     return;
   }
-  const ok = storage.set(DATA_KEY, { version: 1, tasks: state.tasks, grades: state.grades });
+  const ok = storage.set(DATA_KEY, { version: 1, tasks: state.tasks, grades: state.grades, focus: state.focus });
   if (!ok) toast("No se ha podido guardar en este navegador");
   // Pide al navegador que no borre los datos aunque falte espacio.
   if (!persistAsked && navigator.storage?.persist) {
@@ -114,10 +135,10 @@ function saveData() {
 
 const cloud = {
   docs: null,
-  dirty: { tasks: false, grades: false },
-  written: { tasks: null, grades: null },
+  dirty: { tasks: false, grades: false, focus: false },
+  written: { tasks: null, grades: null, focus: null },
   writing: false,
-  loaded: { tasks: false, grades: false },
+  loaded: { tasks: false, grades: false, focus: false },
 };
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -130,13 +151,15 @@ async function initCloud() {
     if (!uid) throw new Error("sin cuenta");
     // Carpeta privada de quien abre la página: nadie más la ve, aunque se comparta el enlace.
     const base = `data/users/${uid}`;
-    cloud.docs = { tasks: db.doc(`${base}/tareas`), grades: db.doc(`${base}/notas`) };
-    for (const key of ["tasks", "grades"]) {
+    cloud.docs = { tasks: db.doc(`${base}/tareas`), grades: db.doc(`${base}/notas`), focus: db.doc(`${base}/foco`) };
+    for (const key of DATA_KEYS) {
       cloud.docs[key].onSnapshot(
         (snap) => {
           if (snap.metadata.hasPendingWrites || cloud.dirty[key] || cloud.writing) return;
-          const items = snap.exists ? snap.data().items : [];
-          const text = JSON.stringify(Array.isArray(items) ? items : []);
+          const empty = key === "focus" ? {} : [];
+          const items = snap.exists ? snap.data().items : empty;
+          const valid = key === "focus" ? isPlainObject(items) : Array.isArray(items);
+          const text = JSON.stringify(valid ? items : empty);
           cloud.written[key] = text;
           if (text !== JSON.stringify(state[key])) {
             state[key] = JSON.parse(text);
@@ -144,7 +167,7 @@ async function initCloud() {
           }
           if (!cloud.loaded[key]) {
             cloud.loaded[key] = true;
-            if (cloud.loaded.tasks && cloud.loaded.grades) {
+            if (DATA_KEYS.every((k) => cloud.loaded[k])) {
               state.loading = false;
               render();
             }
@@ -172,7 +195,7 @@ async function flushCloud() {
   if (cloud.writing || !cloud.docs) return;
   cloud.writing = true;
   try {
-    for (const key of ["tasks", "grades"]) {
+    for (const key of DATA_KEYS) {
       while (cloud.dirty[key]) {
         cloud.dirty[key] = false;
         const text = JSON.stringify(state[key]);
@@ -193,7 +216,7 @@ async function flushCloud() {
   } finally {
     cloud.writing = false;
   }
-  if (cloud.dirty.tasks || cloud.dirty.grades) flushCloud();
+  if (DATA_KEYS.some((k) => cloud.dirty[k])) flushCloud();
 }
 
 // ================================================================ Snackbar
@@ -233,6 +256,7 @@ function render() {
   closeMenu();
   if (state.tab === "tareas") renderTasks();
   else if (state.tab === "notas") renderGrades();
+  else if (state.tab === "foco") renderFocus();
   else renderStatus();
 }
 
@@ -378,64 +402,99 @@ function updateBt() {
 // ================================================================ Estado: conexión y test de velocidad
 
 function connectionInfo() {
-  const c = navigator.connection;
-  const online = navigator.onLine;
-  const type = c?.type; // wifi, cellular, ethernet, none, unknown (Chrome Android)
+  const type = navigator.connection?.type; // solo Chrome en Android y fuera de claude.ai
   return {
-    online,
-    kind: !online ? "none" : type === "wifi" ? "wifi" : type === "cellular" ? "mobile" : type === "ethernet" ? "ethernet" : "unknown",
-    downlink: c?.downlink || null,
-    rtt: c?.rtt || null, // 0 = el navegador no lo sabe
-    effectiveType: c?.effectiveType,
-    saveData: c?.saveData,
+    online: navigator.onLine,
+    kind: !navigator.onLine ? "none" : type === "wifi" ? "wifi" : type === "cellular" ? "mobile" : type === "ethernet" ? "ethernet" : "unknown",
   };
 }
 
-function qualityFromRtt(rtt) {
-  if (rtt == null) return null;
-  if (rtt <= 75) return { label: "Excelente", level: 4, color: "var(--good)" };
-  if (rtt <= 150) return { label: "Buena", level: 3, color: "var(--good)" };
-  if (rtt <= 300) return { label: "Regular", level: 2, color: "var(--warning)" };
-  return { label: "Lenta", level: 1, color: "var(--bad)" };
+/** Calidad según el ping medido de verdad. */
+function pingQuality(ms) {
+  if (ms <= 40) return { label: "Excelente", color: "var(--good)" };
+  if (ms <= 80) return { label: "Buena", color: "var(--good)" };
+  if (ms <= 150) return { label: "Normal", color: "var(--warning)" };
+  return { label: "Lenta", color: "var(--bad)" };
 }
+
+// En claude.ai solo se puede descargar de la propia página: el test usa archivos publicados con ella.
+const SPEED = ARTIFACT
+  ? { ping: () => "prueba/ping.txt", down: () => "prueba/descarga.png", upload: false, maxBytes: 60e6 }
+  : {
+      ping: () => `https://speed.cloudflare.com/__down?bytes=0&r=${Math.random()}`,
+      down: () => `https://speed.cloudflare.com/__down?bytes=25000000&r=${Math.random()}`,
+      upload: true,
+      maxBytes: 150e6,
+    };
+
+/** Ping real: varias peticiones pequeñas, se descarta la primera y se queda la mediana. */
+async function measurePing(signal, onStep) {
+  const samples = [];
+  for (let i = 0; i < 6; i++) {
+    const t0 = performance.now();
+    const r = await fetch(SPEED.ping(), { cache: "no-store", signal });
+    await r.arrayBuffer();
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (i > 0) samples.push(performance.now() - t0);
+    onStep?.(i);
+  }
+  const sorted = [...samples].sort((a, b) => a - b);
+  return {
+    ping: Math.round(sorted[Math.floor(sorted.length / 2)]),
+    jitter: Math.round(samples.slice(1).reduce((s, v, i) => s + Math.abs(v - samples[i]), 0) / (samples.length - 1)),
+  };
+}
+
+async function autoPing() {
+  if (status.pingBusy || !navigator.onLine || (status.ping && Date.now() - status.ping.at < 60000)) return;
+  status.pingBusy = true;
+  try {
+    const { ping } = await measurePing();
+    status.ping = { ms: ping, at: Date.now(), ok: true };
+  } catch {
+    status.ping = { ok: false, at: Date.now() };
+  }
+  status.pingBusy = false;
+  updateNetwork();
+}
+
+
 
 function updateNetwork() {
   const box = $("#net-body");
   if (!box) return;
   const n = connectionInfo();
   if (n.kind === "none") {
-    box.innerHTML = `<p class="headline" style="color:var(--bad)">Sin conexión</p><p class="hint mt8">No hay internet ahora mismo.</p>`;
+    box.innerHTML = `<div class="row"><span class="orb" style="--orb:var(--bad)"></span><div class="grow"><p class="headline" style="color:var(--bad)">Sin conexión</p><p class="hint">No hay internet ahora mismo.</p></div></div>`;
     return;
   }
   const names = { wifi: "WiFi", mobile: "Datos móviles", ethernet: "Cable", unknown: "Conectado" };
-  const q = qualityFromRtt(n.rtt);
-  const bars = q ? q.level : 3;
-  const color = q ? q.color : "var(--accent)";
+  const p = status.ping;
+  const q = p?.ok ? pingQuality(p.ms) : null;
+  const orb = q ? q.color : p && !p.ok ? "var(--warning)" : "var(--accent)";
   const cells = [];
-  if (n.downlink != null) cells.push(["Bajada estimada", `${n.downlink >= 10 ? "10+" : L.fmtDecimal(n.downlink)} Mbps`]);
-  if (n.rtt != null) cells.push(["Respuesta", `${n.rtt} ms`]);
-  if (n.effectiveType) cells.push(["Tipo de red", n.effectiveType.toUpperCase()]);
-  if (n.saveData) cells.push(["Ahorro de datos", "Activado"]);
+  if (p?.ok) cells.push(["Respuesta (ping)", `${p.ms} ms`]);
+  const s = status.speed;
+  if (s.state === "done") cells.push(["Velocidad medida", `${L.fmtDecimal(s.down, s.down >= 100 ? 0 : 1)} Mbps`]);
   box.innerHTML = `
     <div class="row">
-      <div class="bars" style="color:${color}">${[1, 2, 3, 4].map((i) => `<i class="${i <= bars ? "on" : ""}" style="height:${i * 25}%"></i>`).join("")}</div>
+      <span class="orb" style="--orb:${orb}"></span>
       <div class="grow">
         <p class="headline">${names[n.kind]}${q ? ` <span style="color:${q.color}">· ${q.label}</span>` : ""}</p>
-        <div class="pills mt8"><span class="pill" style="--pill:var(--good)"><span class="status-dot" style="width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor"></span>Internet funciona</span></div>
+        <p class="hint">${p?.ok ? "Internet funciona" : p ? "Internet no responde bien ahora" : "Comprobando internet…"}</p>
       </div>
     </div>
     ${cells.length ? `<div class="grid2 mt16">${cells.map(([l, v]) => `<div class="cell"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("")}</div>` : ""}
-    ${n.kind === "unknown" ? `<p class="small mt12" style="margin-bottom:0">Este navegador no dice si es WiFi o datos.</p>` : ""}`;
+    ${n.kind === "unknown" ? `<p class="small mt12" style="margin-bottom:0">El navegador no dice si es WiFi o datos, ni la señal: solo se muestra lo que se mide de verdad.</p>` : ""}`;
 }
 
-const SPEED_BASE = "https://speed.cloudflare.com";
 let speedAbort = null;
 
 async function runSpeedTest() {
   if (status.speed.state === "running") return;
   if (connectionInfo().kind === "mobile" && !(await confirmDialog(
     "Estás con datos móviles",
-    "El test descarga y sube datos durante unos segundos: puede gastar entre 20 y 150 MB de tu tarifa.",
+    "El test descarga datos durante unos segundos: puede gastar entre 20 y 150 MB de tu tarifa.",
     "Medir igualmente"
   ))) return;
 
@@ -447,23 +506,14 @@ async function runSpeedTest() {
   };
   try {
     set({ state: "running", phase: "Midiendo ping…", progress: 0 });
-    const samples = [];
-    for (let i = 0; i < 8; i++) {
-      const t0 = performance.now();
-      const r = await fetch(`${SPEED_BASE}/__down?bytes=0&r=${Math.random()}`, { cache: "no-store", signal });
-      await r.arrayBuffer();
-      if (i > 0) samples.push(performance.now() - t0); // la primera incluye DNS y TLS
-      set({ state: "running", phase: "Midiendo ping…", progress: (0.1 * (i + 1)) / 8 });
-    }
-    const sorted = [...samples].sort((a, b) => a - b);
-    const ping = Math.round(sorted[Math.floor(sorted.length / 2)]);
-    const jitter = Math.round(samples.slice(1).reduce((s, v, i) => s + Math.abs(v - samples[i]), 0) / (samples.length - 1));
+    const { ping, jitter } = await measurePing(signal, (i) => set({ state: "running", phase: "Midiendo ping…", progress: (0.1 * (i + 1)) / 6 }));
+    status.ping = { ms: ping, at: Date.now(), ok: true };
 
-    const down = await measure("Midiendo bajada…", 8000, 4, 0.1, 0.55, signal, ping, async (count, until, sig) => {
-      while (performance.now() < until) {
-        const r = await fetch(`${SPEED_BASE}/__down?bytes=25000000&r=${Math.random()}`, { cache: "no-store", signal: sig });
+    const down = await measure("Midiendo bajada…", 8000, 3, 0.1, SPEED.upload ? 0.55 : 0.9, signal, ping, async (count, until, sig, full) => {
+      while (performance.now() < until && !full()) {
+        const r = await fetch(SPEED.down(), { cache: "no-store", signal: sig });
         const reader = r.body.getReader();
-        while (performance.now() < until) {
+        while (performance.now() < until && !full()) {
           const { done, value } = await reader.read();
           if (done) break;
           count(value.byteLength);
@@ -473,19 +523,22 @@ async function runSpeedTest() {
     });
 
     let up = null;
-    try {
-      const chunk = new Uint8Array(512 * 1024);
-      for (let i = 0; i < chunk.length; i += 65536) crypto.getRandomValues(chunk.subarray(i, i + 65536));
-      up = await measure("Midiendo subida…", 6000, 2, 0.65, 0.35, signal, ping, async (count, until, sig) => {
-        while (performance.now() < until) {
-          await fetch(`${SPEED_BASE}/__up`, { method: "POST", body: chunk, headers: { "Content-Type": "text/plain" }, signal: sig });
-          count(chunk.byteLength);
-        }
-      });
-    } catch (e) {
-      if (signal.aborted) throw e;
+    if (SPEED.upload) {
+      try {
+        const chunk = new Uint8Array(512 * 1024);
+        for (let i = 0; i < chunk.length; i += 65536) crypto.getRandomValues(chunk.subarray(i, i + 65536));
+        up = await measure("Midiendo subida…", 6000, 2, 0.65, 0.35, signal, ping, async (count, until, sig) => {
+          while (performance.now() < until) {
+            await fetch("https://speed.cloudflare.com/__up", { method: "POST", body: chunk, headers: { "Content-Type": "text/plain" }, signal: sig });
+            count(chunk.byteLength);
+          }
+        });
+      } catch (e) {
+        if (signal.aborted) throw e;
+      }
     }
     set({ state: "done", ping, jitter, down, up, at: Date.now() });
+    updateNetwork();
   } catch (e) {
     if (signal.aborted) set({ state: "idle" });
     else set({ state: "error", message: "No se ha podido medir. ¿Hay internet?" });
@@ -513,7 +566,7 @@ async function measure(phase, ms, streams, start, span, signal, ping, worker) {
   try {
     await Promise.all(
       Array.from({ length: streams }, () =>
-        worker((n) => (bytes += n), until, inner.signal).catch(() => {})
+        worker((n) => (bytes += n), until, inner.signal, () => bytes >= SPEED.maxBytes).catch(() => {})
       )
     );
   } finally {
@@ -542,21 +595,25 @@ function updateSpeed() {
   const s = status.speed;
   const mbps = (v) => (v == null ? "—" : L.fmtDecimal(v, v >= 100 ? 0 : 1));
   if (s.state === "running") {
-    box.innerHTML = `<div class="row"><span class="grow">${s.phase}</span>${s.live != null ? `<span class="strong">${mbps(s.live)} Mbps</span>` : ""}</div>
+    box.innerHTML = `<div class="row"><span class="grow">${s.phase}</span>${s.live != null ? `<span class="strong num">${mbps(s.live)} Mbps</span>` : ""}</div>
       <div class="meter mt8"><i style="width:${Math.round(s.progress * 100)}%"></i></div>
       <button class="btn outline block mt12" data-action="speed-cancel">Cancelar</button>`;
   } else if (s.state === "done") {
     const [title, text] = verdict(s);
-    box.innerHTML = `<div class="stats3">
-        <div><div class="small">Ping</div><div class="big">${s.ping}</div><div class="small">ms</div></div>
-        <div><div class="small">Bajada</div><div class="big">${mbps(s.down)}</div><div class="small">Mbps</div></div>
-        <div><div class="small">Subida</div><div class="big">${mbps(s.up)}</div><div class="small">Mbps</div></div>
+    const cols = [["Ping", s.ping, "ms"], ["Bajada", mbps(s.down), "Mbps"]];
+    if (SPEED.upload) cols.push(["Subida", mbps(s.up), "Mbps"]);
+    box.innerHTML = `<div class="stats3" style="grid-template-columns:repeat(${cols.length},1fr)">
+        ${cols.map(([l, v, u]) => `<div><div class="small">${l}</div><div class="big">${v}</div><div class="small">${u}</div></div>`).join("")}
       </div>
-      <p class="mt12 strong">${title}</p><p class="hint" style="color:var(--text)">${text}</p>
+      <p class="mt12 strong" style="margin-bottom:2px">${title}</p><p class="hint" style="color:var(--text)">${text}</p>
       <p class="small">Variación del ping: ${s.jitter} ms · medido a las ${L.fmtTime(s.at)}</p>
-      <button class="btn tonal block mt12" data-action="speed">Repetir</button>`;
+      <button class="btn glass block mt12" data-action="speed">Repetir</button>`;
   } else {
-    box.innerHTML = `${s.state === "error" ? `<p style="color:var(--bad)">${s.message}</p>` : `<p class="hint">Mide el ping, la velocidad de bajada y la de subida (tarda unos 15 segundos).</p>`}
+    box.innerHTML = `${s.state === "error" ? `<p style="color:var(--bad)">${s.message}</p>` : `<p class="hint">${
+      SPEED.upload
+        ? "Mide el ping, la velocidad de bajada y la de subida (tarda unos 15 segundos)."
+        : "Mide el ping y la velocidad de bajada descargando un archivo de prueba (unos 10 segundos; con datos móviles gasta entre 20 y 60 MB)."
+    }</p>`}
       <button class="btn block mt12" data-action="speed">${s.state === "error" ? "Reintentar" : "Medir velocidad"}</button>`;
   }
 }
@@ -564,7 +621,7 @@ function updateSpeed() {
 // ================================================================ Estado: este móvil
 
 async function initDevice() {
-  const info = { model: null, android: null };
+  const info = { model: null, android: null, hz: null };
   try {
     const ua = await navigator.userAgentData?.getHighEntropyValues(["model", "platformVersion"]);
     if (ua) {
@@ -580,6 +637,25 @@ async function initDevice() {
   }
   status.device = info;
   updateDevice();
+  info.hz = await measureRefreshRate();
+  updateDevice();
+}
+
+/** Hercios de la pantalla, midiendo cuánto tarda en pintar 40 fotogramas. */
+function measureRefreshRate() {
+  return new Promise((resolve) => {
+    const times = [];
+    const step = (t) => {
+      times.push(t);
+      if (times.length < 40) return requestAnimationFrame(step);
+      const deltas = times.slice(1).map((v, i) => v - times[i]).sort((a, b) => a - b);
+      const hz = 1000 / deltas[Math.floor(deltas.length / 2)];
+      const common = [30, 48, 60, 90, 120, 144, 165];
+      const near = common.reduce((a, b) => (Math.abs(b - hz) < Math.abs(a - hz) ? b : a));
+      resolve(Math.abs(near - hz) <= 6 ? near : Math.round(hz));
+    };
+    requestAnimationFrame(step);
+  });
 }
 
 function updateDevice() {
@@ -587,12 +663,14 @@ function updateDevice() {
   if (!box) return;
   const d = status.device || {};
   const cells = [];
-  if (d.model) cells.push(["Modelo", d.model]);
-  if (d.android) cells.push(["Sistema", d.android]);
-  if (navigator.deviceMemory) cells.push(["Memoria RAM", `≈ ${navigator.deviceMemory >= 8 ? "8 GB o más" : `${navigator.deviceMemory} GB`}`]);
-  if (navigator.hardwareConcurrency) cells.push(["Procesador", `${navigator.hardwareConcurrency} núcleos`]);
-  cells.push(["Pantalla", `${screen.width} × ${screen.height}`]);
-  box.innerHTML = `<div class="grid2">${cells.map(([l, v]) => `<div class="cell"><div class="label">${l}</div><div class="value">${esc(v)}</div></div>`).join("")}</div>`;
+  const friendly = L.friendlyModel(d.model);
+  if (d.model) cells.push(["Modelo", friendly ? friendly.replace(/^Samsung /, "") : d.model, friendly ? d.model : ""]);
+  if (d.android) cells.push(["Sistema", d.android, ""]);
+  const dpr = window.devicePixelRatio || 1;
+  cells.push(["Pantalla", `${Math.round(screen.width * dpr)} × ${Math.round(screen.height * dpr)}`, "píxeles reales"]);
+  if (d.hz) cells.push(["Frecuencia", `${d.hz} Hz`, "medida ahora"]);
+  if (navigator.hardwareConcurrency) cells.push(["Procesador", `${navigator.hardwareConcurrency} núcleos`, ""]);
+  box.innerHTML = `<div class="grid2">${cells.map(([l, v, sub]) => `<div class="cell"><div class="label">${l}</div><div class="value">${esc(v)}</div>${sub ? `<div class="label">${esc(sub)}</div>` : ""}</div>`).join("")}</div>`;
 }
 
 // ================================================================ Instalar como app
@@ -635,9 +713,9 @@ function renderStatus() {
       <section class="card">${cardHead("battery", "Batería")}<div id="battery-body"></div></section>
       <section class="card">${cardHead("headphones", "Cascos")}<div id="bt-body"></div></section>
       <section class="card">${cardHead("wifi", "Conexión")}<div id="net-body"></div>
-        ${ARTIFACT ? "" : `<hr class="divider">
+        <hr class="divider">
         <div class="row" style="margin-bottom:12px">${svg("speed").replace("<svg", '<svg style="width:22px;height:22px;fill:var(--accent)"')}<span class="strong">Test de velocidad</span></div>
-        <div id="speed-body"></div>`}
+        <div id="speed-body"></div>
       </section>
       <section class="card">${cardHead("phone", "Este móvil")}<div id="device-body"></div></section>
     </div>`;
@@ -646,6 +724,7 @@ function renderStatus() {
   updateNetwork();
   updateSpeed();
   updateDevice();
+  autoPing();
 }
 
 // ================================================================ Pantalla Tareas
@@ -669,7 +748,9 @@ function renderTasks() {
 
   let html = header + `<div class="${stackClass()}">`;
   html += planCard(pending, done, day);
+  html += weekCard(day);
   html += pending.map((t) => taskCard(t, day)).join("");
+  html += examsCard(day);
   if (done.length) {
     html += `<button class="done-head" data-action="toggle-done" aria-expanded="${state.showDone}">
       <span class="grow" style="text-align:left">TERMINADAS · ${done.length}</span>${svg(state.showDone ? "up" : "down")}</button>`;
@@ -681,7 +762,72 @@ function renderTasks() {
   }
   html += `</div>${fab}`;
   $("#view").innerHTML = html;
+  drawWeekChart();
 }
+
+/** "Tu semana": páginas por día de los últimos 7 días y racha de estudio. */
+function weekCard(day) {
+  const days = L.studyByDay(state.tasks, 7, day, state.focus);
+  const pages = days.reduce((s, d) => s + d.pages, 0);
+  const minutes = days.reduce((s, d) => s + d.minutes, 0);
+  const best = Math.max(...days.map((d) => d.pages));
+  const streak = L.studyStreak(state.tasks, day, state.focus);
+  const sel = days.find((d) => d.date === state.selectedDay);
+  const streakPill = streak
+    ? `<span class="pill" style="--pill:var(--warning)">${svg("flame")}${streak} ${streak === 1 ? "día" : "días"}</span>`
+    : "";
+  return `<section class="card">
+    ${cardHead("trend", "Tu semana", streakPill)}
+    <div class="mini-stats">
+      <div><b class="num">${pages}</b><span>págs en 7 días</span></div>
+      <div><b class="num">${best}</b><span>tu mejor día</span></div>
+      ${minutes ? `<div><b class="num">${fmtMinutes(minutes)}</b><span>de foco</span></div>` : ""}
+    </div>
+    <div class="${chartClass()}" id="week-chart"></div>
+    <p class="chart-detail">${
+      sel
+        ? `<b>${L.fmtDateShort(sel.date)}</b>: ${L.fmtPages(sel.pages)}${sel.minutes ? ` · ${fmtMinutes(sel.minutes)} de foco` : ""}`
+        : streak > 1
+          ? `Llevas ${streak} días seguidos estudiando. ¡No rompas la racha!`
+          : "Cada página que anotes suma aquí. Toca una barra para ver ese día."
+    }</p>
+  </section>`;
+}
+
+function drawWeekChart() {
+  const box = $("#week-chart");
+  if (!box) return;
+  const days = L.studyByDay(state.tasks, 7, today(), state.focus);
+  box.innerHTML = C.dayColumns(days.map((d) => ({ date: d.date, value: d.pages })), {
+    width: Math.max(260, box.clientWidth || 320),
+    unit: "págs",
+    selected: state.selectedDay,
+  });
+}
+
+/** Calendario con los exámenes que quedan. */
+function examsCard(day) {
+  const exams = L.upcomingExams(state.tasks, day);
+  if (!exams.length) return "";
+  const rows = exams.map((t) => {
+    const [weekday, num, month] = L.fmtDateShort(t.examDate).split(" ");
+    const days = L.daysUntilExam(t, day);
+    const color = days <= 1 ? "var(--bad)" : days <= 3 ? "var(--warning)" : "var(--accent)";
+    const pct = Math.round(L.progress(t) * 100);
+    return `<div class="exam-row">
+      <div class="date-block" style="--pill:${color}"><span>${weekday}</span><b>${num}</b><span>${month}</span></div>
+      <div class="grow">
+        <div class="strong">${esc(t.title)}</div>
+        <div class="small">${capitalize(L.relativeDay(days))}${L.hasPages(t) ? ` · ${pct} % estudiado` : ""}</div>
+        ${L.hasPages(t) ? `<div class="meter mt8"><i style="width:${pct}%"></i></div>` : ""}
+      </div>
+    </div>`;
+  });
+  return `<section class="card">${cardHead("event", "Próximos exámenes")}<div class="exam-list">${rows.join("")}</div></section>`;
+}
+
+const capitalize = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const fmtMinutes = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`);
 
 /** Texto corto del día del examen para que quepa en una línea (el icono ya dice "examen"). */
 function examShort(t, day) {
@@ -1038,11 +1184,14 @@ function renderGrades() {
         <div class="stat"><span>Notas apuntadas</span><b>${count}</b><em>la media es la de las asignaturas</em></div>
       </div>
     </section>
-    <section class="card">${cardHead("chart", "Media por asignatura")}<div class="chart" id="chart"></div><p class="chart-detail" id="chart-detail"></p></section>`;
+    ${evolutionCard()}
+    <section class="card">${cardHead("chart", "Media por asignatura")}<div class="${chartClass()}" id="chart"></div><p class="chart-detail" id="chart-detail"></p></section>
+    ${neededCard(subjects)}`;
   html += subjects.map((s) => `<section class="card">
       <div class="subject-head">
         <div class="badge-icon" style="--accent:${gradeColor(s.average)}">${svg("book")}</div>
         <h2>${esc(s.name)}</h2>
+        ${C.sparkline(L.subjectTrend(s), { color: gradeColor(s.average) })}
         <div class="subject-avg"><b style="color:${gradeColor(s.average)}">${L.fmtGrade(s.average)}</b><span class="small">${L.gradeLabel(s.average)}</span></div>
       </div>
       <div class="grade-list">${s.grades.map((g) => `<button class="grade-row" data-action="edit-grade" data-id="${g.id}">
@@ -1054,6 +1203,59 @@ function renderGrades() {
   html += `</div>${fab}`;
   $("#view").innerHTML = html;
   drawChart(subjects);
+  drawEvolution();
+}
+
+/** Cómo ha ido cambiando la media general nota a nota. */
+function evolutionCard() {
+  if (state.grades.length < 2) return "";
+  const points = L.averageTimeline(state.grades);
+  const delta = points[points.length - 1].value - points[0].value;
+  const sign = delta > 0.005 ? "+" : delta < -0.005 ? "−" : "";
+  const color = delta > 0.005 ? "var(--good)" : delta < -0.005 ? "var(--bad)" : "var(--muted)";
+  const pill = `<span class="pill" style="--pill:${color}">${sign}${L.fmtGrade(Math.abs(delta))} desde la 1.ª nota</span>`;
+  return `<section class="card">${cardHead("trend", "Tu evolución", pill)}
+    <div class="${chartClass()}" id="evo-chart"></div><p class="chart-detail" id="evo-detail"></p></section>`;
+}
+
+function drawEvolution() {
+  const box = $("#evo-chart");
+  if (!box) return;
+  const points = L.averageTimeline(state.grades);
+  box.innerHTML = C.averageLine(points, { width: Math.max(260, box.clientWidth || 320), selected: state.selectedPoint });
+  const sel = points.find((p) => p.grade.id === state.selectedPoint);
+  $("#evo-detail").innerHTML = sel
+    ? `<b>${esc(L.cleanSubjectName(sel.grade.subject))}: ${L.fmtGrade(sel.grade.value)}</b>${sel.grade.description ? ` (${esc(sel.grade.description)})` : ""} el ${L.fmtDateShort(sel.date)} → media general <b>${L.fmtGrade(sel.value)}</b>`
+    : "Media general después de cada nota. Toca un punto para ver cuál fue.";
+}
+
+/** "¿Qué necesito sacar?": la nota que hace falta en el próximo examen de cada asignatura. */
+function neededCard(subjects) {
+  const target = state.target;
+  const chips = [5, 6, 7, 8, 9].map(
+    (t) => `<button type="button" data-action="target" data-target="${t}" aria-pressed="${t === target}">${t === 5 ? "Aprobar" : t}</button>`
+  ).join("");
+  const rows = subjects.map((s) => {
+    const need = L.neededGrade(s, target);
+    let badge;
+    let text;
+    if (need.status === "done") {
+      badge = `<span class="need" style="--need:var(--good)">✓</span>`;
+      text = `Asegurado: aunque saques un 0, la media se queda en ${L.fmtGrade((s.average * s.grades.length) / (s.grades.length + 1))}`;
+    } else if (need.status === "impossible") {
+      badge = `<span class="need" style="--need:var(--bad)">10+</span>`;
+      text = `Con un solo examen no llegas: necesitarías un ${L.fmtGrade(need.needed)}`;
+    } else {
+      const color = need.needed <= 5 ? "var(--good)" : need.needed <= 7.5 ? "var(--warning)" : "var(--bad)";
+      badge = `<span class="need" style="--need:${color}">${L.fmtGrade(need.needed)}</span>`;
+      text = `Necesitas un <b>${L.fmtGrade(need.needed)}</b> en el próximo examen`;
+    }
+    return `<div class="need-row">${badge}<div class="grow"><div class="strong">${esc(s.name)} <span class="small">· ahora ${L.fmtGrade(s.average)}</span></div><div class="small">${text}</div></div></div>`;
+  });
+  return `<section class="card">${cardHead("target", "¿Qué necesito sacar?")}
+    <p class="hint" style="margin-bottom:12px">Elige a qué media quieres llegar:</p>
+    <div class="segmented targets">${chips}</div>
+    <div class="need-list">${rows.join("")}</div></section>`;
 }
 
 /** Color de una nota: rojo suspenso, ámbar aprobado/bien, verde notable, cian sobresaliente. */
@@ -1203,6 +1405,253 @@ function openGradeEditor(grade, presetSubject = "") {
   });
 }
 
+// ================================================================ Foco (temporizador de estudio)
+
+const PRESETS = [
+  { id: "25", work: 25, rest: 5, label: "25 + 5" },
+  { id: "50", work: 50, rest: 10, label: "50 + 10" },
+  { id: "15", work: 15, rest: 3, label: "15 + 3" },
+];
+const TIMER_KEY = "mipanel:temporizador";
+const timer = Object.assign(
+  { preset: "25", phase: "work", running: false, endsAt: 0, remaining: 25 * 60000, taskId: null },
+  storage.get(TIMER_KEY, {})
+);
+if (!PRESETS.some((p) => p.id === timer.preset)) timer.preset = "25";
+
+const preset = () => PRESETS.find((p) => p.id === timer.preset);
+const phaseLength = (phase) => (phase === "work" ? preset().work : preset().rest) * 60000;
+const timeLeft = () => (timer.running ? Math.max(0, timer.endsAt - Date.now()) : timer.remaining);
+const saveTimer = () => storage.set(TIMER_KEY, timer);
+const fmtClock = (ms) => {
+  const total = Math.ceil(ms / 1000);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+};
+
+let ticker = 0;
+function ensureTicker() {
+  if (ticker || !timer.running) return;
+  ticker = setInterval(tick, 250);
+}
+function tick() {
+  if (!timer.running) {
+    clearInterval(ticker);
+    ticker = 0;
+    return;
+  }
+  if (timeLeft() <= 0) completePhase();
+  else updateFocusUI();
+}
+
+let audioCtx = null;
+function ensureAudio() {
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.resume?.();
+  } catch {
+    audioCtx = null;
+  }
+}
+function chime() {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + 0.05;
+  [784, 988, 1319].forEach((freq, i) => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "sine";
+    o.frequency.value = freq;
+    const t = t0 + i * 0.2;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t);
+    o.stop(t + 0.65);
+  });
+}
+
+function addFocusMinutes(minutes) {
+  if (minutes < 1) return;
+  const day = today();
+  state.focus = { ...state.focus, [day]: (state.focus[day] || 0) + minutes };
+  saveData();
+}
+
+function startTimer() {
+  if (timer.running) return;
+  ensureAudio();
+  timer.endsAt = Date.now() + timer.remaining;
+  timer.running = true;
+  saveTimer();
+  ensureTicker();
+  renderIfFocus();
+}
+
+function pauseTimer() {
+  if (!timer.running) return;
+  timer.remaining = timeLeft();
+  timer.running = false;
+  saveTimer();
+  renderIfFocus();
+}
+
+/** Para y vuelve al principio. Si estabas concentrado, guarda los minutos que llevabas. */
+function resetTimer() {
+  if (timer.phase === "work") {
+    const minutes = Math.floor((phaseLength("work") - timeLeft()) / 60000);
+    if (minutes >= 1) {
+      addFocusMinutes(minutes);
+      toast(`Guardados ${fmtMinutes(minutes)} de foco`);
+    }
+  }
+  timer.phase = "work";
+  timer.running = false;
+  timer.remaining = phaseLength("work");
+  saveTimer();
+  renderIfFocus();
+}
+
+function skipPhase() {
+  if (timer.phase === "work") {
+    resetTimer();
+    timer.phase = "rest";
+    timer.remaining = phaseLength("rest");
+  } else {
+    timer.phase = "work";
+    timer.remaining = phaseLength("work");
+  }
+  timer.running = false;
+  saveTimer();
+  renderIfFocus();
+}
+
+function completePhase() {
+  const finished = timer.phase;
+  timer.running = false;
+  chime();
+  navigator.vibrate?.([200, 120, 200, 120, 400]);
+  if (finished === "work") {
+    addFocusMinutes(preset().work);
+    timer.phase = "rest";
+    timer.remaining = phaseLength("rest");
+    saveTimer();
+    renderIfFocus();
+    focusDoneDialog();
+  } else {
+    timer.phase = "work";
+    timer.remaining = phaseLength("work");
+    saveTimer();
+    renderIfFocus();
+    toast("Descanso terminado: ¡a por otra sesión!", "Empezar", startTimer, 8000);
+  }
+}
+
+function renderIfFocus() {
+  if (state.tab === "foco") render();
+}
+
+function updateFocusUI() {
+  const time = $("#focus-time");
+  if (!time) return;
+  const left = timeLeft();
+  time.textContent = fmtClock(left);
+  const pct = 100 - (left / phaseLength(timer.phase)) * 100;
+  $("#focus-ring")?.style.setProperty("--p", pct.toFixed(2));
+}
+
+function renderFocus() {
+  const day = today();
+  const studyTasks = L.pendingSorted(state.tasks).filter(L.hasPages);
+  if (timer.taskId && !studyTasks.some((t) => t.id === timer.taskId)) timer.taskId = null;
+  const isWork = timer.phase === "work";
+  const left = timeLeft();
+  const pct = 100 - (left / phaseLength(timer.phase)) * 100;
+  const days = L.studyByDay(state.tasks, 7, day, state.focus);
+  const week = days.reduce((s, d) => s + d.minutes, 0);
+  const todayMin = state.focus[day] || 0;
+  const streak = L.studyStreak(state.tasks, day, state.focus);
+  const p = preset();
+  $("#view").innerHTML = `${topbar("Foco")}
+    <div class="${stackClass()}">
+      <section class="card focus-card${isWork ? "" : " resting"}">
+        <div class="segmented presets">${PRESETS.map((x) => `<button type="button" data-action="preset" data-preset="${x.id}" aria-pressed="${x.id === timer.preset}" ${timer.running ? "disabled" : ""}>${x.label}</button>`).join("")}</div>
+        <div class="ring-wrap xl${timer.running ? " live" : ""}">
+          <div class="ring" id="focus-ring" style="--p:${pct.toFixed(2)}${isWork ? "" : ";--c1:var(--cyan);--c2:var(--blue)"}"></div>
+          <div class="center">
+            <span class="eyebrow">${isWork ? "Concentración" : "Descanso"}</span>
+            <b class="focus-time" id="focus-time">${fmtClock(left)}</b>
+            <span class="small">${isWork ? `${p.work} min de estudio` : `${p.rest} min para despejarte`}</span>
+          </div>
+        </div>
+        <label class="field focus-task"><span>Estoy estudiando</span>
+          <select id="focus-task">
+            <option value="">Sin elegir tarea</option>
+            ${studyTasks.map((t) => `<option value="${t.id}" ${t.id === timer.taskId ? "selected" : ""}>${esc(t.title)}</option>`).join("")}
+          </select></label>
+        <div class="focus-controls">
+          <button class="icon-btn big" data-action="focus-reset" aria-label="Reiniciar">${svg("reset")}</button>
+          ${timer.running
+            ? `<button class="btn play" data-action="focus-pause">${svg("pause")}Pausar</button>`
+            : `<button class="btn play" data-action="focus-start">${svg("play")}${left < phaseLength(timer.phase) ? "Seguir" : isWork ? "Empezar" : "Descansar"}</button>`}
+          <button class="icon-btn big" data-action="focus-skip" aria-label="${isWork ? "Pasar al descanso" : "Saltar descanso"}">${svg("skip")}</button>
+        </div>
+        <p class="small" style="text-align:center;margin:14px 0 0">Si sales de la app el tiempo sigue contando. Al terminar suena y vibra si la tienes abierta.</p>
+      </section>
+      <section class="card">
+        ${cardHead("timer", "Tiempo de estudio", streak ? `<span class="pill" style="--pill:var(--warning)">${svg("flame")}${streak} ${streak === 1 ? "día" : "días"}</span>` : "")}
+        <div class="mini-stats">
+          <div><b class="num">${fmtMinutes(todayMin)}</b><span>hoy</span></div>
+          <div><b class="num">${fmtMinutes(week)}</b><span>esta semana</span></div>
+        </div>
+        <div class="${chartClass()}" id="focus-chart"></div>
+        <p class="chart-detail">${(() => {
+          const sel = days.find((d) => d.date === state.selectedFocusDay);
+          return sel ? `<b>${L.fmtDateShort(sel.date)}</b>: ${fmtMinutes(sel.minutes)} de foco` : "Minutos de foco de los últimos 7 días.";
+        })()}</p>
+      </section>
+    </div>`;
+  const box = $("#focus-chart");
+  box.innerHTML = C.dayColumns(days.map((d) => ({ date: d.date, value: d.minutes })), {
+    width: Math.max(260, box.clientWidth || 320),
+    unit: "min",
+    selected: state.selectedFocusDay,
+    hitAttr: "data-focusday",
+  });
+  ensureTicker();
+}
+
+/** Al acabar una sesión: anotar páginas de la tarea que estabas estudiando y empezar el descanso. */
+function focusDoneDialog() {
+  const task = state.tasks.find((t) => t.id === timer.taskId && !L.isDone(t));
+  const todayMin = state.focus[today()] || 0;
+  const root = overlay(`
+    <div class="scrim"><div class="dialog center-dialog" role="dialog" aria-modal="true" aria-labelledby="fd-title">
+      <div class="burst" aria-hidden="true">⏱️</div>
+      <h2 id="fd-title">¡Sesión completada!</h2>
+      <p style="margin:0">${preset().work} min de concentración. Hoy llevas <b>${fmtMinutes(todayMin)}</b>.</p>
+      ${task ? `<p class="mt12" style="margin-bottom:8px">¿Cuántas páginas de «${esc(task.title)}» has estudiado?</p>
+        <div class="quick" style="grid-template-columns:repeat(4,1fr)">
+          ${[1, 3, 5, 10].map((n) => `<button type="button" data-add="${n}">+${n}</button>`).join("")}
+        </div>` : ""}
+      <button class="btn block mt16" id="fd-rest">Empezar descanso de ${preset().rest} min</button>
+      <button class="btn text block" data-close>Ahora no</button>
+    </div></div>`);
+  root.querySelectorAll("[data-add]").forEach((b) =>
+    b.addEventListener("click", () => {
+      closeOverlay(root);
+      changeTask(task.id, (t) => L.withPagesAdded(t, Number(b.dataset.add), today(), Date.now()));
+    })
+  );
+  $("#fd-rest", root).addEventListener("click", () => {
+    closeOverlay(root);
+    startTimer();
+  });
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && timer.running) tick();
+});
+
 // ================================================================ Copia de seguridad
 
 function openBackupDialog() {
@@ -1220,7 +1669,7 @@ function openBackupDialog() {
     </div></div>`);
   const msg = $("#bk-msg", root);
   $("#bk-export", root).addEventListener("click", async () => {
-    const data = { app: "MiPanel", version: 1, createdAt: Date.now(), tasks: state.tasks, grades: state.grades };
+    const data = { app: "MiPanel", version: 1, createdAt: Date.now(), tasks: state.tasks, grades: state.grades, focus: state.focus };
     if (ARTIFACT) {
       const downloads = await window.claude?.use?.("downloads");
       if (!downloads) {
@@ -1256,6 +1705,11 @@ function openBackupDialog() {
       };
       state.tasks = merge(state.tasks, data.tasks);
       state.grades = merge(state.grades, data.grades);
+      if (isPlainObject(data.focus)) {
+        const focus = { ...state.focus };
+        for (const [day, min] of Object.entries(data.focus)) focus[day] = Math.max(focus[day] || 0, Number(min) || 0);
+        state.focus = focus;
+      }
       saveData();
       render();
       msg.textContent = `✓ Recuperadas ${(data.tasks || []).length} tareas y ${(data.grades || []).length} notas`;
@@ -1398,8 +1852,20 @@ document.addEventListener("click", (e) => {
   if (!el || el.closest("#overlay-root")) {
     const hit = e.target.closest(".chart .hit");
     if (hit) {
-      state.selectedSubject = state.selectedSubject === hit.dataset.subject ? null : hit.dataset.subject;
-      drawChart(L.bySubject(state.grades));
+      const toggle = (key, value) => (state[key] = state[key] === value ? null : value);
+      if (hit.dataset.subject) {
+        toggle("selectedSubject", hit.dataset.subject);
+        drawChart(L.bySubject(state.grades));
+      } else if (hit.dataset.point) {
+        toggle("selectedPoint", hit.dataset.point);
+        drawEvolution();
+      } else if (hit.dataset.day) {
+        toggle("selectedDay", hit.dataset.day);
+        render();
+      } else if (hit.dataset.focusday) {
+        toggle("selectedFocusDay", hit.dataset.focusday);
+        render();
+      }
     }
     return;
   }
@@ -1447,6 +1913,32 @@ document.addEventListener("click", (e) => {
       else showMenu(el, items);
       break;
     }
+    case "target":
+      state.target = Number(el.dataset.target);
+      storage.set("mipanel:objetivo", state.target);
+      render();
+      break;
+    case "preset":
+      if (!timer.running) {
+        timer.preset = el.dataset.preset;
+        timer.phase = "work";
+        timer.remaining = phaseLength("work");
+        saveTimer();
+        render();
+      }
+      break;
+    case "focus-start":
+      startTimer();
+      break;
+    case "focus-pause":
+      pauseTimer();
+      break;
+    case "focus-reset":
+      resetTimer();
+      break;
+    case "focus-skip":
+      skipPhase();
+      break;
     case "menu":
       if (openMenuEl) closeMenu();
       else showMenu(el, [["Copia de seguridad", openBackupDialog]]);
@@ -1460,6 +1952,13 @@ document.addEventListener("click", (e) => {
   }
 });
 
+document.addEventListener("change", (e) => {
+  if (e.target.id === "focus-task") {
+    timer.taskId = e.target.value || null;
+    saveTimer();
+  }
+});
+
 addEventListener("online", updateNetwork);
 addEventListener("offline", updateNetwork);
 navigator.connection?.addEventListener("change", updateNetwork);
@@ -1467,7 +1966,7 @@ navigator.connection?.addEventListener("change", updateNetwork);
 let resizeTimer = 0;
 addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => state.tab === "notas" && drawChart(L.bySubject(state.grades)), 150);
+  resizeTimer = setTimeout(() => state.tab !== "estado" && render(), 150);
 });
 
 // Si la app se queda abierta de un día para otro, se recalcula "hoy".
@@ -1492,16 +1991,18 @@ addEventListener("storage", (e) => {
 // Accesos directos del icono (mantener pulsado): ?pestana=tareas / notas
 const fromUrl = new URLSearchParams(location.search).get("pestana");
 if (fromUrl) state.tab = fromUrl;
-if (!["estado", "tareas", "notas"].includes(state.tab)) state.tab = "estado";
+if (!["estado", "tareas", "foco", "notas"].includes(state.tab)) state.tab = "estado";
 if (ARTIFACT) initCloud();
 else loadData();
 render();
 initBattery();
 initDevice();
+if (timer.running && timeLeft() <= 0) setTimeout(completePhase, 600);
+else ensureTicker();
 
 if (!ARTIFACT && "serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
 // Para los tests automáticos.
-window.__miPanel = { state, render };
+window.__miPanel = { state, render, timer, completePhase };
