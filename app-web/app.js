@@ -34,6 +34,24 @@ const ICON = {
 };
 const svg = (name, cls = "") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[name]}"/></svg>`;
 
+/** Cabecera de cada pantalla: fecha pequeña de color y título grande. */
+function topbar(title, actions = "") {
+  const date = L.fmtDateLong(today()).replace(/ de \d{4}$/, "");
+  return `<header class="topbar"><div class="titles"><p class="eyebrow">${date}</p><h1>${esc(title)}</h1></div>${actions}</header>`;
+}
+
+// Las tarjetas entran con una animación solo al cambiar de pestaña, no en cada +1.
+let animateNext = true;
+function stackClass() {
+  const cls = animateNext ? "stack" : "stack still";
+  animateNext = false;
+  return cls;
+}
+
+function ring(pct, style = "") {
+  return `<div class="ring" style="--p:${Math.max(0, Math.min(100, pct))};${style}"></div>`;
+}
+
 function cardHead(icon, title, trailing = "") {
   return `<div class="card-head"><div class="badge-icon">${svg(icon)}</div><h2>${esc(title)}</h2>${trailing}</div>`;
 }
@@ -201,11 +219,13 @@ function toast(text, action, onAction, ms = 4000) {
 function setTab(tab) {
   state.tab = tab;
   storage.set("mipanel:pestana", tab);
+  animateNext = true;
   render();
   window.scrollTo(0, 0);
 }
 
 function render() {
+  document.body.dataset.section = state.tab;
   document.querySelectorAll(".tab").forEach((b) => {
     if (b.dataset.tab === state.tab) b.setAttribute("aria-current", "page");
     else b.removeAttribute("aria-current");
@@ -244,6 +264,13 @@ function batteryColor(pct) {
   return pct <= 15 ? "var(--bad)" : pct <= 30 ? "var(--warning)" : "var(--good)";
 }
 
+/** Colores del anillo de batería según el nivel. */
+function batteryGradient(pct) {
+  if (pct <= 15) return ["var(--bad)", "#ff9a6b"];
+  if (pct <= 30) return ["var(--warning)", "#ffe27a"];
+  return ["var(--good)", "var(--cyan)"];
+}
+
 function updateBattery() {
   const box = $("#battery-body");
   if (!box) return;
@@ -258,29 +285,28 @@ function updateBattery() {
   }
   const pct = Math.round(b.level * 100);
   const full = b.charging && pct >= 100;
-  const color = batteryColor(pct);
-  const c = 2 * Math.PI * 61;
+  const [c1, c2] = batteryGradient(pct);
   let time = "";
   if (b.charging && Number.isFinite(b.chargingTime) && b.chargingTime > 0) time = `Al 100 % en ${L.fmtDuration(b.chargingTime * 1000)}`;
-  else if (!b.charging && Number.isFinite(b.dischargingTime) && b.dischargingTime > 0)
-    time = `≈ ${L.fmtDuration(b.dischargingTime * 1000)} de uso`;
+  else if (!b.charging && Number.isFinite(b.dischargingTime) && b.dischargingTime > 0) time = `≈ ${L.fmtDuration(b.dischargingTime * 1000)} de uso`;
+  const label = full ? "Carga completa" : b.charging ? "Cargando" : pct <= 15 ? "Batería baja" : "Con batería";
+  const stateColor = b.charging || full ? "var(--good)" : pct <= 15 ? "var(--bad)" : pct <= 30 ? "var(--warning)" : "var(--text)";
   box.innerHTML = `
     <div class="battery">
-      <div class="ring">
-        <svg viewBox="0 0 136 136"><circle class="track" cx="68" cy="68" r="61"/>
-          <circle class="fill" cx="68" cy="68" r="61" stroke="${color}" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - b.level)}"/></svg>
+      <div class="ring-wrap">
+        ${ring(pct, `--c1:${c1};--c2:${c2}`)}
         <div class="center">
-          ${b.charging ? `<svg class="bolt" viewBox="0 0 24 24" style="fill:${color}"><path d="${ICON.bolt}"/></svg>` : ""}
-          <div class="pct${pct >= 100 ? " full" : ""}">${pct} %</div>
+          ${b.charging ? `<svg class="bolt" viewBox="0 0 24 24" style="fill:${c1}"><path d="${ICON.bolt}"/></svg>` : ""}
+          <div class="pct${pct >= 100 ? " full" : ""}">${pct}<small>%</small></div>
         </div>
       </div>
       <div class="grow">
-        <p class="headline" style="${b.charging ? "color:var(--good)" : ""}">${full ? "Carga completa" : b.charging ? "Cargando" : "Con batería"}</p>
-        ${b.charging ? `<p class="hint">Enchufado</p>` : ""}
-        ${time ? `<p class="mt8">${time}</p>` : ""}
+        <p class="headline" style="color:${stateColor}">${label}</p>
+        <div class="pills mt8">${b.charging ? `<span class="pill" style="--pill:var(--good)">${svg("bolt")}Enchufado</span>` : `<span class="pill" style="--pill:var(--muted)">Sin cargador</span>`}</div>
+        ${time ? `<p class="mt12" style="margin-bottom:0">${time}</p>` : ""}
       </div>
     </div>
-    <p class="small mt16">El navegador da el porcentaje exacto y si está cargando. La temperatura y el consumo solo los ve la app instalable (APK).</p>`;
+    <p class="small mt16" style="margin-bottom:0">El porcentaje es el exacto del sistema. La temperatura y el consumo solo los da la app instalable (APK).</p>`;
 }
 
 // ================================================================ Estado: cascos (Web Bluetooth)
@@ -378,28 +404,28 @@ function updateNetwork() {
   if (!box) return;
   const n = connectionInfo();
   if (n.kind === "none") {
-    box.innerHTML = `<p class="headline" style="color:var(--bad)">Sin conexión</p><p class="hint">No hay internet ahora mismo.</p>`;
+    box.innerHTML = `<p class="headline" style="color:var(--bad)">Sin conexión</p><p class="hint mt8">No hay internet ahora mismo.</p>`;
     return;
   }
   const names = { wifi: "WiFi", mobile: "Datos móviles", ethernet: "Cable", unknown: "Conectado" };
   const q = qualityFromRtt(n.rtt);
-  const bars = q ? q.level : 0;
+  const bars = q ? q.level : 3;
+  const color = q ? q.color : "var(--accent)";
   const cells = [];
-  if (n.downlink != null) cells.push(["Bajada estimada", `${n.downlink >= 10 ? "10 o más" : L.fmtDecimal(n.downlink)} Mbps`]);
-  if (n.rtt != null) cells.push(["Respuesta (ping)", `${n.rtt} ms`]);
-  if (n.effectiveType) cells.push(["Calidad para Chrome", n.effectiveType.toUpperCase()]);
+  if (n.downlink != null) cells.push(["Bajada estimada", `${n.downlink >= 10 ? "10+" : L.fmtDecimal(n.downlink)} Mbps`]);
+  if (n.rtt != null) cells.push(["Respuesta", `${n.rtt} ms`]);
+  if (n.effectiveType) cells.push(["Tipo de red", n.effectiveType.toUpperCase()]);
   if (n.saveData) cells.push(["Ahorro de datos", "Activado"]);
   box.innerHTML = `
     <div class="row">
-      <div class="bars" style="color:${q ? q.color : "var(--neutral)"}">${[1, 2, 3, 4].map((i) => `<i class="${i <= bars ? "on" : ""}" style="height:${i * 25}%"></i>`).join("")}</div>
+      <div class="bars" style="color:${color}">${[1, 2, 3, 4].map((i) => `<i class="${i <= bars ? "on" : ""}" style="height:${i * 25}%"></i>`).join("")}</div>
       <div class="grow">
-        <p class="headline">${names[n.kind]}${q ? ` · <span style="color:${q.color}">${q.label}</span>` : ""}</p>
-        <p class="hint">Según lo que tarda en responder internet</p>
+        <p class="headline">${names[n.kind]}${q ? ` <span style="color:${q.color}">· ${q.label}</span>` : ""}</p>
+        <div class="pills mt8"><span class="pill" style="--pill:var(--good)"><span class="status-dot" style="width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor"></span>Internet funciona</span></div>
       </div>
     </div>
-    <p class="mt12 strong" style="color:var(--good)">✓ Internet funciona</p>
-    ${cells.length ? `<div class="grid2 mt12">${cells.map(([l, v]) => `<div class="cell"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("")}</div>` : ""}
-    ${n.kind === "unknown" ? `<p class="small mt12">Este navegador no dice si es WiFi o datos.</p>` : ""}`;
+    ${cells.length ? `<div class="grid2 mt16">${cells.map(([l, v]) => `<div class="cell"><div class="label">${l}</div><div class="value">${v}</div></div>`).join("")}</div>` : ""}
+    ${n.kind === "unknown" ? `<p class="small mt12" style="margin-bottom:0">Este navegador no dice si es WiFi o datos.</p>` : ""}`;
 }
 
 const SPEED_BASE = "https://speed.cloudflare.com";
@@ -603,14 +629,14 @@ function installBanner() {
 
 function renderStatus() {
   $("#view").innerHTML = `
-    <header class="topbar"><h1>Mi móvil</h1></header>
+    ${topbar("Mi móvil")}
     ${installBanner()}
-    <div class="stack">
+    <div class="${stackClass()}">
       <section class="card">${cardHead("battery", "Batería")}<div id="battery-body"></div></section>
       <section class="card">${cardHead("headphones", "Cascos")}<div id="bt-body"></div></section>
-      <section class="card">${cardHead("wifi", "Conexión e internet")}<div id="net-body"></div>
+      <section class="card">${cardHead("wifi", "Conexión")}<div id="net-body"></div>
         ${ARTIFACT ? "" : `<hr class="divider">
-        <div class="row" style="margin-bottom:12px">${svg("speed").replace("<svg", '<svg style="width:24px;height:24px;fill:var(--primary)"')}<span class="strong">Test de velocidad</span></div>
+        <div class="row" style="margin-bottom:12px">${svg("speed").replace("<svg", '<svg style="width:22px;height:22px;fill:var(--accent)"')}<span class="strong">Test de velocidad</span></div>
         <div id="speed-body"></div>`}
       </section>
       <section class="card">${cardHead("phone", "Este móvil")}<div id="device-body"></div></section>
@@ -625,86 +651,133 @@ function renderStatus() {
 // ================================================================ Pantalla Tareas
 
 function renderTasks() {
+  const header = topbar("Tareas", `<button class="icon-btn" data-action="menu" aria-label="Más opciones">${svg("more")}</button>`);
   if (state.loading) {
-    $("#view").innerHTML = `<header class="topbar"><h1>Tareas</h1></header><p class="loading">Cargando tus tareas…</p>`;
+    $("#view").innerHTML = `${header}<p class="loading">Cargando tus tareas…</p>`;
     return;
   }
   const day = today();
   const pending = L.pendingSorted(state.tasks);
   const done = L.doneSorted(state.tasks);
-  const overview = L.dayOverview(state.tasks, day);
-  const header = `<header class="topbar"><h1>Tareas</h1>
-    <button class="icon-btn" data-action="menu" aria-label="Más opciones">${svg("more")}</button></header>`;
   const fab = `<button class="fab" data-action="new-task" aria-label="Nueva tarea">${svg("add")}Nueva tarea</button>`;
 
   if (!pending.length && !done.length) {
-    $("#view").innerHTML = `${header}<div class="empty">${svg("book")}<h2>No tienes tareas</h2>
+    $("#view").innerHTML = `${header}<div class="empty"><div class="glow-icon">${svg("book")}</div><h2>No tienes tareas</h2>
       <p class="hint">Pulsa "Nueva tarea" y apunta lo que tengas que estudiar, la fecha del examen y cuántas páginas son.</p></div>${fab}`;
     return;
   }
 
-  let html = header + `<div class="stack">`;
-  if (overview.goalToday > 0) {
-    const reached = overview.pagesToday >= overview.goalToday;
-    const next = pending.find((t) => t.examDate && L.daysUntilExam(t, day) >= 0);
-    html += `<section class="today"><div class="small" style="color:inherit">Hoy</div>
-      <div class="big">${reached ? `¡Objetivo cumplido! ${overview.pagesToday} págs` : `Llevas ${overview.pagesToday} de ${overview.goalToday} págs`}</div>
-      <div class="meter"><i style="width:${Math.min(100, (overview.pagesToday / overview.goalToday) * 100)}%;${reached ? "background:var(--good)" : ""}"></i></div>
-      ${next ? `<p class="mt12" style="margin-bottom:0">Próximo examen: ${esc(next.title)}, ${L.relativeDay(L.daysUntilExam(next, day))}</p>` : ""}
-    </section>`;
-  }
-  if (!pending.length) html += `<p class="strong" style="padding:8px">¡No tienes nada pendiente! 🎉</p>`;
+  let html = header + `<div class="${stackClass()}">`;
+  html += planCard(pending, done, day);
   html += pending.map((t) => taskCard(t, day)).join("");
   if (done.length) {
     html += `<button class="done-head" data-action="toggle-done" aria-expanded="${state.showDone}">
-      <span class="grow" style="text-align:left">Terminadas (${done.length})</span>${svg(state.showDone ? "up" : "down").replace("<svg", '<svg style="width:24px;height:24px;fill:currentColor"')}</button>`;
+      <span class="grow" style="text-align:left">TERMINADAS · ${done.length}</span>${svg(state.showDone ? "up" : "down")}</button>`;
     if (state.showDone) {
-      html += done.map((t) => `<div class="done-item row">${svg("check", "ok")}
+      html += done.map((t) => `<div class="done-item">${svg("check", "ok")}
         <div class="grow"><div class="strong">${esc(t.title)}</div><div class="small">${L.completionLine(t, day)}</div></div>
-        <button class="icon-btn" data-action="task-menu" data-id="${t.id}" aria-label="Opciones">${svg("more")}</button></div>`).join("");
+        <button class="icon-btn ghost" data-action="task-menu" data-id="${t.id}" aria-label="Opciones">${svg("more")}</button></div>`).join("");
     }
   }
   html += `</div>${fab}`;
   $("#view").innerHTML = html;
 }
 
+/** Texto corto del día del examen para que quepa en una línea (el icono ya dice "examen"). */
+function examShort(t, day) {
+  const days = L.daysUntilExam(t, day);
+  const date = L.fmtDateShort(t.examDate);
+  if (days < 0) return `Ya pasó · ${date}`;
+  if (days === 0) return "¡Examen hoy!";
+  if (days === 1) return `Mañana · ${date}`;
+  return `En ${days} días · ${date}`;
+}
+
+/** Resumen de arriba: lo de HOY (objetivo del día) separado del TOTAL estudiado. */
+function planCard(pending, done, day) {
+  const overview = L.dayOverview(state.tasks, day);
+  const studyTasks = pending.filter(L.hasPages);
+  const totalPages = studyTasks.reduce((s, t) => s + t.totalPages, 0);
+  const donePages = studyTasks.reduce((s, t) => s + t.pagesDone, 0);
+  const next = pending.find((t) => t.examDate && L.daysUntilExam(t, day) >= 0);
+
+  if (!pending.length) {
+    return `<section class="card plan"><p class="eyebrow">Todo al día</p><p class="big">¡No tienes nada pendiente! 🎉</p>
+      <p class="hint">Has terminado ${done.length === 1 ? "1 tarea" : `${done.length} tareas`}.</p></section>`;
+  }
+
+  let top;
+  if (overview.goalToday > 0) {
+    const left = Math.max(0, overview.goalToday - overview.pagesToday);
+    const reached = left === 0;
+    const pct = Math.round(Math.min(1, overview.pagesToday / overview.goalToday) * 100);
+    top = `<div class="plan-top">
+      <div class="ring-wrap md">${ring(pct, reached ? "--c1:var(--good);--c2:#7affd0" : "")}
+        <div class="center"><b>${overview.pagesToday}/${overview.goalToday}</b><span>págs hoy</span></div></div>
+      <div class="grow">
+        <p class="eyebrow">Plan de hoy</p>
+        <p class="big">${reached ? "¡Objetivo de hoy cumplido!" : `Hoy te tocan ${L.fmtPages(overview.goalToday)}`}</p>
+        <p class="hint">${reached ? `Has estudiado ${L.fmtPages(overview.pagesToday)} hoy.` : `Llevas ${overview.pagesToday} hoy · te faltan ${left}`}</p>
+      </div></div>`;
+  } else {
+    top = `<p class="eyebrow">Plan de hoy</p><p class="big">${pending.length === 1 ? "1 tarea pendiente" : `${pending.length} tareas pendientes`}</p>
+      <p class="hint">Pon fecha de examen y páginas a tus tareas para saber cuántas tocan cada día.</p>`;
+  }
+  const stats = [];
+  if (totalPages > 0) stats.push(`<div class="stat"><span>Total estudiado</span><b>${donePages} de ${totalPages} págs</b><em>${Math.round((donePages / totalPages) * 100)} % de lo pendiente</em></div>`);
+  if (next) {
+    const days = L.daysUntilExam(next, day);
+    stats.push(`<div class="stat"><span>Próximo examen</span><b>${L.fmtDateShort(next.examDate)} · ${L.relativeDay(days)}</b><em>${esc(next.title)}</em></div>`);
+  }
+  return `<section class="card plan">${top}${stats.length ? `<div class="stats2">${stats.join("")}</div>` : ""}</section>`;
+}
+
 function taskCard(t, day) {
   const chip = L.examChip(t, day);
-  const chipColor = { bad: "var(--bad)", warning: "var(--warning)", primary: "var(--primary)", neutral: "var(--neutral)" };
+  const chipColor = { bad: "var(--bad)", warning: "var(--warning)", primary: "var(--accent)", neutral: "var(--neutral)" };
+  const pills = [];
+  if (chip) pills.push(`<span class="pill" style="--pill:${chipColor[chip.level]}" title="${esc(chip.text)}">${svg("event")}${examShort(t, day)}</span>`);
   let body = "";
-  if (chip) body += `<span class="chip" style="--chip:${chipColor[chip.level]}">${svg("event")}${esc(chip.text)}</span>`;
-  if (t.notes) body += `<p class="hint mt8" style="margin-bottom:0">${esc(t.notes)}</p>`;
+  let side = "";
   if (L.hasPages(t)) {
     const pct = Math.round(L.progress(t) * 100);
     const days = L.daysUntilExam(t, day);
     const perDay = L.pagesPerDayFromNow(t, day);
     const goal = L.goalToday(t, day);
     const doneToday = Math.max(0, L.pagesOn(t, day));
-    let plan;
-    if (days == null) plan = `<p class="hint">Te quedan ${L.fmtPages(L.remainingPages(t))}. Pon fecha de examen para saber cuántas tocan al día.</p>`;
-    else if (days < 0) plan = `<p class="hint">El examen ya pasó · te quedaron ${L.fmtPages(L.remainingPages(t))}</p>`;
-    else plan = `<p style="margin:0">Te quedan ${L.fmtPages(L.remainingPages(t))} → ${perDay} ${days <= 1 ? "hoy" : "al día"}</p>`;
+    if (perDay != null && days != null && days >= 0) pills.push(`<span class="pill" style="--pill:var(--muted)">${days <= 1 ? `${L.fmtPages(perDay)} hoy` : `${perDay} págs/día`}</span>`);
+    side = `<div class="ring-wrap sm">${ring(pct)}<div class="center">${pct}%</div></div>`;
+    let plan = "";
+    if (days == null) plan = `<p class="small mt8" style="margin-bottom:0">Pon fecha de examen para saber cuántas páginas tocan al día.</p>`;
+    else if (days < 0) plan = `<p class="small mt8" style="margin-bottom:0">El examen ya pasó · te quedaron ${L.fmtPages(L.remainingPages(t))}.</p>`;
     if (goal) {
       const reached = doneToday >= goal;
-      plan += `<p class="strong" style="margin:2px 0 0;${reached ? "color:var(--good)" : ""}">${reached ? `✓ Objetivo de hoy cumplido (${doneToday} de ${goal})` : `Hoy: ${doneToday} de ${goal} págs`}</p>`;
+      plan += `<div class="today-line${reached ? " done" : ""}"><span class="status-dot"></span><span class="grow">${
+        reached ? `Hoy cumplido: llevas <b>${doneToday}</b> (tocaban ${goal})` : `Hoy te tocan <b>${goal}</b> · llevas <b>${doneToday}</b>`
+      }</span></div>`;
     }
-    body += `<div class="row mt12"><span class="grow" style="font-size:17px">${t.pagesDone} de ${t.totalPages} págs</span><span class="strong" style="font-size:17px">${pct} %</span></div>
-      <div class="meter thick mt8"><i style="width:${pct}%"></i></div>
-      <div class="mt12">${plan}</div>
+    body = `
+      <div class="numbers"><span><b>${t.pagesDone}</b> de ${t.totalPages} págs</span><span>Quedan ${L.remainingPages(t)}</span></div>
+      <div class="meter thick"><i style="width:${pct}%"></i></div>
+      ${plan}
       <div class="quick">
-        <button class="btn tonal" data-action="add-pages" data-id="${t.id}" data-n="1">+1</button>
-        <button class="btn tonal" data-action="add-pages" data-id="${t.id}" data-n="5">+5</button>
-        <button class="btn tonal" data-action="add-pages" data-id="${t.id}" data-n="10">+10</button>
-        <button class="btn outline" data-action="log" data-id="${t.id}">Anotar…</button>
+        <button type="button" data-action="add-pages" data-id="${t.id}" data-n="1">+1</button>
+        <button type="button" data-action="add-pages" data-id="${t.id}" data-n="5">+5</button>
+        <button type="button" data-action="add-pages" data-id="${t.id}" data-n="10">+10</button>
+        <button type="button" class="log" data-action="log" data-id="${t.id}">Anotar…</button>
       </div>`;
   }
-  return `<article class="task">
-    <div class="row" style="gap:4px">
-      ${L.hasPages(t) ? "" : `<button class="check" data-action="toggle" data-id="${t.id}" aria-label="Marcar como hecha"></button>`}
-      <h3 class="task-title grow">${esc(t.title)}</h3>
-      <button class="icon-btn" data-action="task-menu" data-id="${t.id}" aria-label="Opciones">${svg("more")}</button>
+  return `<article class="card task">
+    <div class="task-top">
+      ${L.hasPages(t) ? side : `<button class="check" data-action="toggle" data-id="${t.id}" aria-label="Marcar como hecha"></button>`}
+      <div class="grow">
+        <h3 class="task-title">${esc(t.title)}</h3>
+        ${pills.length ? `<div class="pills">${pills.join("")}</div>` : ""}
+      </div>
+      <button class="icon-btn ghost" data-action="task-menu" data-id="${t.id}" aria-label="Opciones">${svg("more")}</button>
     </div>
-    <div class="body">${body}</div>
+    ${t.notes ? `<p class="notes">${esc(t.notes)}</p>` : ""}
+    ${body}
   </article>`;
 }
 
@@ -757,9 +830,9 @@ function openTaskEditor(task) {
   const root = overlay(`
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-title">
       <div class="bar">
-        <button class="icon-btn" data-close aria-label="Cerrar">${svg("close")}</button>
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
         <h2 id="ed-title">${task ? "Editar tarea" : "Nueva tarea"}</h2>
-        <button class="btn text" type="submit" form="task-form" id="save">Guardar</button>
+        <button class="btn" type="submit" form="task-form" id="save">Guardar</button>
       </div>
       <form id="task-form" novalidate>
         <label class="field"><span>Qué tienes que hacer</span>
@@ -824,6 +897,7 @@ function openTaskEditor(task) {
       changeTask(task.id, (old) => L.edited(old, values, now));
     } else {
       state.tasks = [...state.tasks, L.edited({ id: uid(), createdAt: now, completedAt: null, dailyLog: {}, totalPages: 0 }, values, now)];
+      animateNext = true;
       saveData();
       render();
     }
@@ -890,7 +964,7 @@ function celebrate(task) {
     <div class="celebrate" role="dialog" aria-modal="true" aria-labelledby="cel-title">
       <canvas></canvas>
       <div class="dialog">
-        <div class="emoji">🎉</div>
+        <div class="burst" aria-hidden="true">🎉</div>
         <h2 id="cel-title">¡Terminado!</h2>
         <p class="strong" style="margin:0">Has terminado «${esc(task.title)}»</p>
         ${L.hasPages(task) ? `<p style="margin:0">${task.totalPages} páginas estudiadas</p>` : ""}
@@ -939,33 +1013,41 @@ function confetti(canvas) {
 // ================================================================ Pantalla Notas
 
 function renderGrades() {
+  const header = topbar("Notas", `<button class="icon-btn" data-action="menu" aria-label="Más opciones">${svg("more")}</button>`);
   if (state.loading) {
-    $("#view").innerHTML = `<header class="topbar"><h1>Notas</h1></header><p class="loading">Cargando tus notas…</p>`;
+    $("#view").innerHTML = `${header}<p class="loading">Cargando tus notas…</p>`;
     return;
   }
   const subjects = L.bySubject(state.grades);
   const overall = L.overallAverage(subjects);
-  const header = `<header class="topbar"><h1>Notas</h1>
-    <button class="icon-btn" data-action="menu" aria-label="Más opciones">${svg("more")}</button></header>`;
   const fab = `<button class="fab" data-action="new-grade" aria-label="Añadir nota">${svg("add")}Añadir nota</button>`;
   if (!subjects.length) {
-    $("#view").innerHTML = `${header}<div class="empty">${svg("chart")}<h2>Aún no has apuntado notas</h2>
+    $("#view").innerHTML = `${header}<div class="empty"><div class="glow-icon">${svg("chart")}</div><h2>Aún no has apuntado notas</h2>
       <p class="hint">Pulsa "Añadir nota", escribe la asignatura y la nota, y aquí verás la media de cada una en una gráfica.</p></div>${fab}`;
     return;
   }
   const count = state.grades.length;
-  let html = `${header}<div class="stack">
-    <section class="card">${cardHead("school", "Media general")}
-      <div class="row" style="align-items:flex-end"><span class="hero">${L.fmtGrade(overall)}</span><span style="font-size:22px;margin-bottom:6px">${L.gradeLabel(overall)}</span></div>
-      <p class="hint mt8">Media de ${subjects.length === 1 ? "1 asignatura" : `${subjects.length} asignaturas`} · ${count === 1 ? "1 nota apuntada" : `${count} notas apuntadas`}</p>
+  const passed = subjects.filter((x) => x.average >= L.PASS_GRADE).length;
+  let html = `${header}<div class="${stackClass()}">
+    <section class="card">
+      <p class="eyebrow">Media general</p>
+      <div class="avg mt8"><span class="hero">${L.fmtGrade(overall)}</span>
+        <span class="pill" style="--pill:${gradeColor(overall)};margin-bottom:10px">${L.gradeLabel(overall)}</span></div>
+      <div class="stats2">
+        <div class="stat"><span>Asignaturas</span><b>${subjects.length}</b><em>${passed === subjects.length ? "todas aprobadas" : `${passed} aprobadas · ${subjects.length - passed} suspensas`}</em></div>
+        <div class="stat"><span>Notas apuntadas</span><b>${count}</b><em>la media es la de las asignaturas</em></div>
+      </div>
     </section>
-    <section class="card">${cardHead("chart", "Media por asignatura")}<div class="chart" id="chart"></div><p class="small mt8" id="chart-detail"></p></section>
-    <h2 style="font-size:17px;margin:8px 0 0 4px">Asignaturas</h2>`;
+    <section class="card">${cardHead("chart", "Media por asignatura")}<div class="chart" id="chart"></div><p class="chart-detail" id="chart-detail"></p></section>`;
   html += subjects.map((s) => `<section class="card">
-      ${cardHead("book", s.name, `<div style="text-align:right"><div style="font-size:22px;font-weight:700">${L.fmtGrade(s.average)}</div><div class="small">${L.gradeLabel(s.average)}</div></div>`)}
-      <div>${s.grades.map((g) => `<button class="grade-row" data-action="edit-grade" data-id="${g.id}">
-          <span class="v">${L.fmtGrade(g.value)}</span>
-          <span class="grow"><span style="display:block">${esc(g.description || "Nota")}</span><span class="small">${L.fmtDateShort(g.date)} ${g.date.slice(0, 4)}</span></span>
+      <div class="subject-head">
+        <div class="badge-icon" style="--accent:${gradeColor(s.average)}">${svg("book")}</div>
+        <h2>${esc(s.name)}</h2>
+        <div class="subject-avg"><b style="color:${gradeColor(s.average)}">${L.fmtGrade(s.average)}</b><span class="small">${L.gradeLabel(s.average)}</span></div>
+      </div>
+      <div class="grade-list">${s.grades.map((g) => `<button class="grade-row" data-action="edit-grade" data-id="${g.id}">
+          <span class="v" style="--grade:${gradeColor(g.value)}">${L.fmtGrade(g.value)}</span>
+          <span class="grow"><span style="display:block;font-weight:600">${esc(g.description || "Nota")}</span><span class="small">${L.fmtDateShort(g.date)} ${g.date.slice(0, 4)}</span></span>
           <span class="edit">Editar</span></button>`).join("")}</div>
       <button class="btn outline block mt12" data-action="new-grade" data-subject="${esc(s.name)}">+ Añadir nota de ${esc(s.name)}</button>
     </section>`).join("");
@@ -974,17 +1056,24 @@ function renderGrades() {
   drawChart(subjects);
 }
 
-/** Barras horizontales: media de 0 a 10 por asignatura, con una línea fina en el 5. */
+/** Color de una nota: rojo suspenso, ámbar aprobado/bien, verde notable, cian sobresaliente. */
+function gradeColor(v) {
+  if (v < L.PASS_GRADE) return "var(--bad)";
+  if (v < 7) return "var(--amber)";
+  if (v < 9) return "var(--good)";
+  return "var(--cyan)";
+}
+
 function drawChart(subjects) {
   const box = $("#chart");
   if (!box) return;
   const width = Math.max(260, box.clientWidth || 320);
-  const rowH = 40;
-  const axisH = 24;
+  const rowH = 42;
+  const axisH = 26;
   const height = rowH * subjects.length + axisH;
   const labelW = Math.min(width * 0.34, 150);
   const x0 = labelW + 10;
-  const x1 = width - 44;
+  const x1 = width - 46;
   const x = (v) => x0 + (v / L.MAX_GRADE) * (x1 - x0);
   const plotBottom = rowH * subjects.length;
   const measure = document.createElement("canvas").getContext("2d");
@@ -998,24 +1087,26 @@ function drawChart(subjects) {
 
   let out = `<svg viewBox="0 0 ${width} ${height}" height="${height}" role="img" aria-label="Gráfica de medias. ${esc(
     subjects.map((s) => `${s.name}: media ${L.fmtGrade(s.average)}`).join("; ")
-  )}">`;
+  )}"><defs><linearGradient id="barGrad" x1="0" x2="1" y1="0" y2="0">
+    <stop offset="0" stop-color="var(--accent-2)"/><stop offset="1" stop-color="var(--accent)"/></linearGradient></defs>`;
   subjects.forEach((s, i) => {
-    if (s.key === state.selectedSubject) out += `<rect class="sel" x="0" y="${i * rowH}" width="${width}" height="${rowH}" rx="8"/>`;
+    if (s.key === state.selectedSubject) out += `<rect class="sel" x="0" y="${i * rowH}" width="${width}" height="${rowH}" rx="12"/>`;
   });
+  for (const tick of [0, L.MAX_GRADE]) out += `<line class="grid" x1="${x(tick)}" x2="${x(tick)}" y1="0" y2="${plotBottom}"/>`;
+  out += `<line class="pass" x1="${x(L.PASS_GRADE)}" x2="${x(L.PASS_GRADE)}" y1="0" y2="${plotBottom}"/>`;
   for (const tick of [0, L.PASS_GRADE, L.MAX_GRADE]) {
-    out += `<line class="grid" x1="${x(tick)}" x2="${x(tick)}" y1="0" y2="${plotBottom}"/>`;
-    out += `<text class="axis" x="${x(tick)}" y="${plotBottom + 16}" text-anchor="middle">${tick === L.PASS_GRADE ? "5 aprobado" : tick}</text>`;
+    out += `<text class="axis" x="${x(tick)}" y="${plotBottom + 17}" text-anchor="middle">${tick === L.PASS_GRADE ? "5 · aprobado" : tick}</text>`;
   }
   subjects.forEach((s, i) => {
     const cy = i * rowH + rowH / 2;
     const end = Math.max(x0 + 1, x(s.average));
-    const r = Math.min(4, end - x0);
-    const top = cy - 8;
-    const bottom = cy + 8;
+    const r = Math.min(5, end - x0);
+    const top = cy - 9;
+    const bottom = cy + 9;
     // Base recta en el 0 y extremo redondeado.
-    out += `<path class="bar" d="M${x0},${top} H${end - r} Q${end},${top} ${end},${top + r} V${bottom - r} Q${end},${bottom} ${end - r},${bottom} H${x0} Z"/>`;
+    out += `<path class="bar" fill="url(#barGrad)" d="M${x0},${top} H${end - r} Q${end},${top} ${end},${top + r} V${bottom - r} Q${end},${bottom} ${end - r},${bottom} H${x0} Z"/>`;
     out += `<text x="0" y="${cy + 5}">${esc(fit(s.name))}</text>`;
-    out += `<text class="value" x="${end + 6}" y="${cy + 5}">${L.fmtGrade(s.average)}</text>`;
+    out += `<text class="value" x="${end + 7}" y="${cy + 5}">${L.fmtGrade(s.average)}</text>`;
     out += `<rect class="hit" data-subject="${esc(s.key)}" x="0" y="${i * rowH}" width="${width}" height="${rowH}"><title>${esc(s.name)}: ${L.fmtGrade(s.average)}</title></rect>`;
   });
   out += `</svg>`;
@@ -1023,8 +1114,8 @@ function drawChart(subjects) {
 
   const sel = subjects.find((s) => s.key === state.selectedSubject);
   $("#chart-detail").innerHTML = sel
-    ? `<span style="color:var(--text)">${esc(sel.name)}: ${sel.grades.length} ${sel.grades.length === 1 ? "nota" : "notas"} (${sel.grades
-        .map((g) => L.fmtGrade(g.value)).join(" · ")}) → media ${L.fmtGrade(sel.average)}, ${L.gradeLabel(sel.average).toLowerCase()}</span>`
+    ? `<b>${esc(sel.name)}</b>: ${sel.grades.length} ${sel.grades.length === 1 ? "nota" : "notas"} (${sel.grades
+        .map((g) => L.fmtGrade(g.value)).join(" · ")}) → media <b>${L.fmtGrade(sel.average)}</b>, ${L.gradeLabel(sel.average).toLowerCase()}`
     : "Toca una barra para ver sus notas.";
 }
 
@@ -1034,9 +1125,9 @@ function openGradeEditor(grade, presetSubject = "") {
   const root = overlay(`
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="gr-title">
       <div class="bar">
-        <button class="icon-btn" data-close aria-label="Cerrar">${svg("close")}</button>
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
         <h2 id="gr-title">${grade ? "Editar nota" : "Nueva nota"}</h2>
-        <button class="btn text" type="submit" form="grade-form" id="save">Guardar</button>
+        <button class="btn" type="submit" form="grade-form" id="save">Guardar</button>
       </div>
       <form id="grade-form" novalidate>
         <label class="field"><span>Asignatura</span>
@@ -1275,9 +1366,10 @@ function showMenu(anchor, items) {
   const menu = document.createElement("div");
   menu.className = "menu";
   menu.setAttribute("role", "menu");
-  items.forEach(([label, fn]) => {
+  items.forEach(([label, fn, danger]) => {
     const b = document.createElement("button");
     b.type = "button";
+    if (danger) b.className = "danger";
     b.setAttribute("role", "menuitem");
     b.textContent = label;
     b.addEventListener("click", () => {
@@ -1350,7 +1442,7 @@ document.addEventListener("click", (e) => {
       const items = [["Editar", () => openTaskEditor(t)]];
       if (L.hasPages(t)) items.push(["Corregir páginas", () => openProgressDialog(t)]);
       if (!L.hasPages(t) && L.isDone(t)) items.push(["Marcar como pendiente", () => changeTask(id, (x) => L.toggledDone(x, Date.now()))]);
-      items.push(["Borrar", () => deleteTask(id)]);
+      items.push(["Borrar", () => deleteTask(id), true]);
       if (openMenuEl) closeMenu();
       else showMenu(el, items);
       break;
