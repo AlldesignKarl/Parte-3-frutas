@@ -19,14 +19,16 @@
   --bad: #dc2626;
   --neutral: #64748b;
   --scrim: rgba(10, 10, 20, 0.5);
+  --inverse-bg: #2f2f37;
+  --inverse-fg: #f2f1f7;
+  --inverse-accent: #c7d2fe;
   --shadow: 0 6px 24px rgba(20, 18, 50, 0.16);
   --radius: 24px;
   --tabbar-h: 72px;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+  :root:not([data-theme="light"]) {
     --primary: #a5b4fc;
     --on-primary: #1e1b4b;
     --primary-container: #3730a3;
@@ -46,8 +48,39 @@
     --bad: #f87171;
     --neutral: #94a3b8;
     --scrim: rgba(0, 0, 0, 0.6);
+    --inverse-bg: #e6e4ee;
+    --inverse-fg: #1b1b21;
+    --inverse-accent: #4f46e5;
     --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --primary: #a5b4fc;
+  --on-primary: #1e1b4b;
+  --primary-container: #3730a3;
+  --on-primary-container: #e0e7ff;
+  --tonal: #1e3a5f;
+  --on-tonal: #dbeafe;
+  --bg: #121318;
+  --card: #1d1d24;
+  --cell: #292932;
+  --track: #33333d;
+  --text: #e6e4ee;
+  --muted: #a8a6b5;
+  --outline: #47465a;
+  --grid: #4a4958;
+  --good: #4ade80;
+  --warning: #fbbf24;
+  --bad: #f87171;
+  --neutral: #94a3b8;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --inverse-bg: #e6e4ee;
+  --inverse-fg: #1b1b21;
+  --inverse-accent: #4f46e5;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -61,7 +94,7 @@ body {
   font-size: 16px;
   line-height: 1.4;
   -webkit-tap-highlight-color: transparent;
-  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   overflow-x: hidden;
 }
 
@@ -70,8 +103,12 @@ button, input, textarea, select { font: inherit; color: inherit; }
 main {
   max-width: 640px;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 8px) 16px 96px;
+  padding-block: 8px 96px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
+/* Fuera de claude.ai la propia página deja sitio a la barra de estado del móvil. */
+.standalone-page main { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); }
 
 .topbar {
   display: flex;
@@ -192,8 +229,8 @@ main {
 
 .fab {
   position: fixed; z-index: 5;
-  right: max(16px, calc(50vw - 304px));
-  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px);
+  right: max(16px, env(safe-area-inset-right, 0px), calc(50vw - 304px));
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 16px);
   display: inline-flex; align-items: center; gap: 10px;
   border: 0; border-radius: 16px; padding: 16px 20px 16px 16px;
   background: var(--primary-container); color: var(--on-primary-container);
@@ -205,6 +242,7 @@ main {
 .hero { font-size: 56px; line-height: 1; font-weight: 600; }
 .chart svg { display: block; width: 100%; overflow: visible; }
 .chart .bar { fill: var(--primary); }
+.chart .sel, .chart .hit { stroke: none; }
 .chart .grid { stroke: var(--grid); stroke-width: 1; }
 .chart text { fill: var(--text); font-size: 14px; }
 .chart text.axis { fill: var(--muted); font-size: 11px; }
@@ -224,8 +262,10 @@ main {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
   display: flex; justify-content: center;
   background: var(--card);
-  padding-bottom: env(safe-area-inset-bottom);
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
 }
 .tab {
   flex: 1; max-width: 200px; border: 0; background: transparent; cursor: pointer;
@@ -238,14 +278,15 @@ main {
 
 /* ---------------------------------------------------------------- Snackbar */
 .snackbar {
-  position: fixed; z-index: 30; left: 16px; right: 16px; margin: 0 auto; max-width: 560px;
-  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
+  position: fixed; z-index: 30; margin: 0 auto; max-width: 560px;
+  left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
   display: flex; align-items: center; gap: 8px;
-  background: #2f2f37; color: #f2f1f7; border-radius: 8px; padding: 6px 8px 6px 16px;
+  background: var(--inverse-bg); color: var(--inverse-fg); border-radius: 8px; padding: 6px 8px 6px 16px;
   box-shadow: var(--shadow);
 }
 .snackbar span { flex: 1; padding: 8px 0; font-size: 15px; }
-.snackbar button { border: 0; background: transparent; color: #c7d2fe; font-weight: 600; padding: 10px; cursor: pointer; }
+.snackbar button { border: 0; background: transparent; color: var(--inverse-accent); font-weight: 600; padding: 10px; cursor: pointer; }
 .snackbar[hidden] { display: none; }
 
 /* ---------------------------------------------------------------- Diálogos */
@@ -304,6 +345,10 @@ main {
   background: var(--tonal); color: var(--on-tonal); border-radius: 20px; padding: 14px 16px; margin-bottom: 14px;
 }
 .install p { margin: 0; flex: 1; font-size: 15px; }
+.loading { color: var(--muted); text-align: center; padding: 64px 0; }
+.btn:focus-visible, .icon-btn:focus-visible, .tab:focus-visible, .grade-row:focus-visible, .done-head:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 2px;
+}
 
 @keyframes fade { from { opacity: 0; } }
 @keyframes up { from { transform: translateY(24px); opacity: 0; } }

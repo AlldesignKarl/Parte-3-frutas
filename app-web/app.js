@@ -8,6 +8,11 @@ const esc = (s) =>
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 const today = () => L.todayIso();
 
+// En la versión que se publica en claude.ai (__ARTIFACT__ lo define el build) los datos se guardan
+// en la cuenta de Claude y no hay test de velocidad, Bluetooth ni service worker.
+// eslint-disable-next-line no-undef
+const ARTIFACT = typeof __ARTIFACT__ !== "undefined" && __ARTIFACT__;
+
 const ICON = {
   battery: "M15.67,4H14V2h-4v2H8.33C7.6,4 7,4.6 7,5.33v15.33C7,21.4 7.6,22 8.33,22h7.33c0.74,0 1.34,-0.6 1.34,-1.33V5.33C17,4.6 16.4,4 15.67,4z",
   bolt: "M11,21h-1l1,-7H7.5c-0.88,0 -0.33,-0.75 -0.31,-0.78C8.48,10.94 10.42,7.54 13.01,3h1l-1,7h3.51c0.4,0 0.62,0.19 0.4,0.66C12.97,17.55 11,21 11,21z",
@@ -61,6 +66,8 @@ const state = {
   grades: [],
   showDone: false,
   selectedSubject: null,
+  loading: ARTIFACT, // en claude.ai se espera a la cuenta antes de pintar "no tienes tareas"
+  where: ARTIFACT ? "cloud" : "local",
 };
 
 function loadData() {
@@ -71,6 +78,11 @@ function loadData() {
 
 let persistAsked = false;
 function saveData() {
+  if (state.where === "cloud") {
+    cloud.dirty.tasks = cloud.dirty.grades = true;
+    flushCloud();
+    return;
+  }
   const ok = storage.set(DATA_KEY, { version: 1, tasks: state.tasks, grades: state.grades });
   if (!ok) toast("No se ha podido guardar en este navegador");
   // Pide al navegador que no borre los datos aunque falte espacio.
@@ -78,6 +90,92 @@ function saveData() {
     persistAsked = true;
     navigator.storage.persist().catch(() => {});
   }
+}
+
+// ---------------------------------------------------------------- Cuenta de Claude (solo claude.ai)
+
+const cloud = {
+  docs: null,
+  dirty: { tasks: false, grades: false },
+  written: { tasks: null, grades: null },
+  writing: false,
+  loaded: { tasks: false, grades: false },
+};
+
+const clone = (v) => JSON.parse(JSON.stringify(v));
+
+async function initCloud() {
+  try {
+    const use = window.claude?.use;
+    const [db, user] = use ? await Promise.all([use("db"), use("user")]) : [null, null];
+    const uid = db && user ? await user.id() : null;
+    if (!uid) throw new Error("sin cuenta");
+    // Carpeta privada de quien abre la página: nadie más la ve, aunque se comparta el enlace.
+    const base = `data/users/${uid}`;
+    cloud.docs = { tasks: db.doc(`${base}/tareas`), grades: db.doc(`${base}/notas`) };
+    for (const key of ["tasks", "grades"]) {
+      cloud.docs[key].onSnapshot(
+        (snap) => {
+          if (snap.metadata.hasPendingWrites || cloud.dirty[key] || cloud.writing) return;
+          const items = snap.exists ? snap.data().items : [];
+          const text = JSON.stringify(Array.isArray(items) ? items : []);
+          cloud.written[key] = text;
+          if (text !== JSON.stringify(state[key])) {
+            state[key] = JSON.parse(text);
+            if (state.tab !== "estado") render();
+          }
+          if (!cloud.loaded[key]) {
+            cloud.loaded[key] = true;
+            if (cloud.loaded.tasks && cloud.loaded.grades) {
+              state.loading = false;
+              render();
+            }
+          }
+        },
+        () => useLocalStorage("Se ha perdido la conexión con tu cuenta: los cambios se guardan solo en este navegador.")
+      );
+    }
+  } catch {
+    useLocalStorage("Abre Mi Panel con tu cuenta de Claude para guardar las tareas y notas. Mientras, se guardan solo en este navegador.");
+  }
+}
+
+function useLocalStorage(message) {
+  if (state.where === "local") return;
+  state.where = "local";
+  if (state.loading || (!state.tasks.length && !state.grades.length)) loadData();
+  state.loading = false;
+  render();
+  toast(message, null, null, 8000);
+}
+
+/** Escribe en la cuenta lo que haya cambiado, de uno en uno (nunca dos escrituras a la vez). */
+async function flushCloud() {
+  if (cloud.writing || !cloud.docs) return;
+  cloud.writing = true;
+  try {
+    for (const key of ["tasks", "grades"]) {
+      while (cloud.dirty[key]) {
+        cloud.dirty[key] = false;
+        const text = JSON.stringify(state[key]);
+        if (text === cloud.written[key]) continue;
+        try {
+          await cloud.docs[key].set({ version: 1, items: clone(state[key]) });
+          cloud.written[key] = text;
+        } catch (e) {
+          if (e?.code === "unavailable") {
+            await new Promise((r) => setTimeout(r, 800 + Math.random() * 800));
+            cloud.dirty[key] = true;
+          } else {
+            toast(e?.code === "quota_exceeded" ? "Tu espacio está lleno: borra tareas o notas antiguas." : "No se ha podido guardar en tu cuenta.");
+          }
+        }
+      }
+    }
+  } finally {
+    cloud.writing = false;
+  }
+  if (cloud.dirty.tasks || cloud.dirty.grades) flushCloud();
 }
 
 // ================================================================ Snackbar
@@ -137,7 +235,8 @@ async function initBattery() {
     );
     updateBattery();
   } catch {
-    // Sin permiso en este contexto: se queda el aviso.
+    status.batteryBlocked = true;
+    updateBattery();
   }
 }
 
@@ -151,9 +250,9 @@ function updateBattery() {
   const b = status.battery;
   if (!b) {
     box.innerHTML = `<p class="hint">${
-      navigator.getBattery
-        ? "Leyendo la batería…"
-        : "Este navegador no deja ver la batería. Abre Mi Panel con Chrome para verla."
+      !navigator.getBattery || status.batteryBlocked
+        ? "Aquí no se puede leer la batería. Abre Mi Panel con Chrome en el móvil para verla."
+        : "Leyendo la batería…"
     }</p>`;
     return;
   }
@@ -233,6 +332,10 @@ async function connectHeadphones() {
 function updateBt() {
   const box = $("#bt-body");
   if (!box) return;
+  if (ARTIFACT) {
+    box.innerHTML = `<p class="hint">La batería de los cascos solo la puede leer la app instalable (APK): una página web no tiene acceso al Bluetooth. Mientras, la ves en Ajustes &gt; Bluetooth.</p>`;
+    return;
+  }
   const bt = status.bt;
   let html = "";
   if (bt.state === "ok") {
@@ -484,6 +587,10 @@ const isStandalone = () => matchMedia("(display-mode: standalone)").matches || n
 
 function installBanner() {
   if (isStandalone() || storage.get("mipanel:ocultar-instalar", false)) return "";
+  if (ARTIFACT) {
+    return `<div class="install"><p><b>Tenla como app:</b> abre este enlace en Chrome, toca ⋮ → <b>Añadir a pantalla de inicio</b>, y te sale el icono.</p>
+      <button class="icon-btn" data-action="hide-install" aria-label="Ocultar">${svg("close")}</button></div>`;
+  }
   if (installPrompt) {
     return `<div class="install"><p><b>Tenla como app:</b> con icono en tu pantalla de inicio y a pantalla completa.</p>
       <button class="btn" data-action="install">Instalar</button></div>`;
@@ -502,9 +609,9 @@ function renderStatus() {
       <section class="card">${cardHead("battery", "Batería")}<div id="battery-body"></div></section>
       <section class="card">${cardHead("headphones", "Cascos")}<div id="bt-body"></div></section>
       <section class="card">${cardHead("wifi", "Conexión e internet")}<div id="net-body"></div>
-        <hr class="divider">
+        ${ARTIFACT ? "" : `<hr class="divider">
         <div class="row" style="margin-bottom:12px">${svg("speed").replace("<svg", '<svg style="width:24px;height:24px;fill:var(--primary)"')}<span class="strong">Test de velocidad</span></div>
-        <div id="speed-body"></div>
+        <div id="speed-body"></div>`}
       </section>
       <section class="card">${cardHead("phone", "Este móvil")}<div id="device-body"></div></section>
     </div>`;
@@ -518,6 +625,10 @@ function renderStatus() {
 // ================================================================ Pantalla Tareas
 
 function renderTasks() {
+  if (state.loading) {
+    $("#view").innerHTML = `<header class="topbar"><h1>Tareas</h1></header><p class="loading">Cargando tus tareas…</p>`;
+    return;
+  }
   const day = today();
   const pending = L.pendingSorted(state.tasks);
   const done = L.doneSorted(state.tasks);
@@ -828,6 +939,10 @@ function confetti(canvas) {
 // ================================================================ Pantalla Notas
 
 function renderGrades() {
+  if (state.loading) {
+    $("#view").innerHTML = `<header class="topbar"><h1>Notas</h1></header><p class="loading">Cargando tus notas…</p>`;
+    return;
+  }
   const subjects = L.bySubject(state.grades);
   const overall = L.overallAverage(subjects);
   const header = `<header class="topbar"><h1>Notas</h1>
@@ -1003,7 +1118,9 @@ function openBackupDialog() {
   const root = overlay(`
     <div class="scrim"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bk-title">
       <h2 id="bk-title">Copia de seguridad</h2>
-      <p style="margin-top:0">Guarda tus tareas y notas en un archivo (en Descargas, Drive…). Si cambias de móvil o borras los datos de Chrome, las recuperas desde aquí. Sirve también para pasarlas a la app instalable (APK).</p>
+      <p style="margin-top:0">${ARTIFACT
+        ? "Tus tareas y notas ya se guardan en tu cuenta de Claude. Si quieres, guarda también una copia en un archivo: sirve para pasarlas a la app instalable (APK) o a la versión web."
+        : "Guarda tus tareas y notas en un archivo (en Descargas, Drive…). Si cambias de móvil o borras los datos de Chrome, las recuperas desde aquí. Sirve también para pasarlas a la app instalable (APK)."}</p>
       <button class="btn block" id="bk-export">Guardar copia</button>
       <button class="btn outline block mt8" id="bk-import">Recuperar una copia</button>
       <input type="file" id="bk-file" accept=".json,application/json" hidden>
@@ -1011,8 +1128,22 @@ function openBackupDialog() {
       <div class="actions"><button class="btn text" data-close>Cerrar</button></div>
     </div></div>`);
   const msg = $("#bk-msg", root);
-  $("#bk-export", root).addEventListener("click", () => {
+  $("#bk-export", root).addEventListener("click", async () => {
     const data = { app: "MiPanel", version: 1, createdAt: Date.now(), tasks: state.tasks, grades: state.grades };
+    if (ARTIFACT) {
+      const downloads = await window.claude?.use?.("downloads");
+      if (!downloads) {
+        msg.textContent = "Aquí no se pueden descargar archivos.";
+        return;
+      }
+      try {
+        await downloads.save({ filename: `mipanel-copia-${today()}.json`, data: JSON.stringify(data, null, 2) });
+        msg.textContent = "✓ Copia guardada";
+      } catch (e) {
+        msg.textContent = e?.code === "declined" ? "" : "No se ha podido guardar la copia.";
+      }
+      return;
+    }
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
     const a = Object.assign(document.createElement("a"), { href: url, download: `mipanel-copia-${today()}.json` });
     document.body.append(a);
@@ -1071,6 +1202,7 @@ let backPending = 0;
 let deferred = 0;
 
 function pushEntry() {
+  if (ARTIFACT) return;
   if (backPending) {
     deferred++;
     return;
@@ -1080,6 +1212,7 @@ function pushEntry() {
 }
 
 function popEntry() {
+  if (ARTIFACT) return;
   if (deferred > 0) {
     deferred--;
     return;
@@ -1256,7 +1389,7 @@ setInterval(() => {
 
 // Otra pestaña con la app abierta cambió los datos.
 addEventListener("storage", (e) => {
-  if (e.key === DATA_KEY) {
+  if (e.key === DATA_KEY && state.where === "local") {
     loadData();
     if (state.tab !== "estado") render();
   }
@@ -1268,12 +1401,13 @@ addEventListener("storage", (e) => {
 const fromUrl = new URLSearchParams(location.search).get("pestana");
 if (fromUrl) state.tab = fromUrl;
 if (!["estado", "tareas", "notas"].includes(state.tab)) state.tab = "estado";
-loadData();
+if (ARTIFACT) initCloud();
+else loadData();
 render();
 initBattery();
 initDevice();
 
-if ("serviceWorker" in navigator && location.protocol === "https:") {
+if (!ARTIFACT && "serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
