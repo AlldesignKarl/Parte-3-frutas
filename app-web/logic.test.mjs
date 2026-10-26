@@ -85,3 +85,23 @@ test("evolución y modelo", () => {
   assert.equal(L.friendlyModel("SM-A546B"), "Samsung Galaxy A54 5G");
   assert.equal(L.friendlyModel("Pixel 8"), null);
 });
+
+test("tiempo de batería calculado por la app", () => {
+  const min = 60000;
+  let log = L.addBatterySample(null, 0.49, true, 0);
+  assert.equal(L.batteryEstimate(log, 0.49, true), null);
+  log = L.addBatterySample(log, 0.50, true, 0.5 * min); // primer cambio (desde aquí se mide)
+  log = L.addBatterySample(log, 0.50, true, 1 * min); // mismo nivel: no se apunta
+  assert.equal(log.samples.length, 2);
+  assert.equal(L.batteryEstimate(log, 0.50, true), null);
+  log = L.addBatterySample(log, 0.52, true, 2.5 * min); // +2 % en 2 min → 1 % por minuto
+  assert.equal(Math.round(L.batteryEstimate(log, 0.52, true) / min), 48);
+  // Al desenchufar empieza de cero
+  log = L.addBatterySample(log, 0.52, false, 3 * min);
+  assert.equal(log.samples.length, 1);
+  log = L.addBatterySample(log, 0.51, false, 10 * min);
+  log = L.addBatterySample(log, 0.50, false, 20 * min); // -1 % cada 10 min
+  assert.equal(Math.round(L.batteryEstimate(log, 0.50, false) / min), 500);
+  // Una lectura de hace más de 2 h no vale
+  assert.equal(L.addBatterySample(log, 0.40, false, 200 * min).samples.length, 1);
+});

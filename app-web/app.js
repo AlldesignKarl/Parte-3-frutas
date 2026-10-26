@@ -269,6 +269,8 @@ const status = {
   device: null,
 };
 
+const BATT_KEY = "mipanel:bateria-muestras";
+
 async function initBattery() {
   if (!navigator.getBattery) return;
   try {
@@ -310,9 +312,17 @@ function updateBattery() {
   const pct = Math.round(b.level * 100);
   const full = b.charging && pct >= 100;
   const [c1, c2] = batteryGradient(pct);
+  // El tiempo que da Chrome no es fiable (puede decir "110 días"): la app lo calcula con lo que
+  // ve subir o bajar la batería mientras está abierta.
+  status.battLog = L.addBatterySample(status.battLog ?? storage.get(BATT_KEY, null), b.level, b.charging, Date.now());
+  storage.set(BATT_KEY, status.battLog);
+  const est = full ? null : L.batteryEstimate(status.battLog, b.level, b.charging);
   let time = "";
-  if (b.charging && Number.isFinite(b.chargingTime) && b.chargingTime > 0) time = `Al 100 % en ${L.fmtDuration(b.chargingTime * 1000)}`;
-  else if (!b.charging && Number.isFinite(b.dischargingTime) && b.dischargingTime > 0) time = `≈ ${L.fmtDuration(b.dischargingTime * 1000)} de uso`;
+  if (full) time = "";
+  else if (est != null && b.charging) time = `Al 100 % en ≈ ${L.fmtDuration(est)}`;
+  else if (est != null) time = `Te queda ≈ ${L.fmtDuration(est)} al ritmo de ahora`;
+  else if (b.charging) time = `<span class="small">Calculando cuánto tarda en cargar: en cuanto suba un 2 %, aquí sale el tiempo.</span>`;
+  else time = `<span class="small">Calculando cuánto te dura: en cuanto baje un 2 %, aquí sale el tiempo.</span>`;
   const label = full ? "Carga completa" : b.charging ? "Cargando" : pct <= 15 ? "Batería baja" : "Con batería";
   const stateColor = b.charging || full ? "var(--good)" : pct <= 15 ? "var(--bad)" : pct <= 30 ? "var(--warning)" : "var(--text)";
   box.innerHTML = `
@@ -330,7 +340,7 @@ function updateBattery() {
         ${time ? `<p class="mt12" style="margin-bottom:0">${time}</p>` : ""}
       </div>
     </div>
-    <p class="small mt16" style="margin-bottom:0">El porcentaje es el exacto del sistema. La temperatura y el consumo solo los da la app instalable (APK).</p>`;
+    <p class="small mt16" style="margin-bottom:0">El porcentaje es el exacto del sistema. El tiempo lo calcula la app viendo cómo cambia la batería mientras la tienes abierta.</p>`;
 }
 
 // ================================================================ Estado: cascos (Web Bluetooth)
@@ -676,6 +686,8 @@ function updateDevice() {
 // ================================================================ Instalar como app
 
 let installPrompt = null;
+const APP_URL = "https://alldesignkarl.github.io/Parte-3-frutas/";
+const PAGES_SETTINGS = "https://github.com/AlldesignKarl/Parte-3-frutas/settings/pages";
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   installPrompt = e;
@@ -690,14 +702,20 @@ window.addEventListener("appinstalled", () => {
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 
 function installBanner() {
-  if (isStandalone() || storage.get("mipanel:ocultar-instalar", false)) return "";
+  if (isStandalone() || storage.get("mipanel:ocultar-instalar-2", false)) return "";
   if (ARTIFACT) {
-    return `<div class="install"><p><b>Tenla como app:</b> abre este enlace en Chrome, toca ⋮ → <b>Añadir a pantalla de inicio</b>, y te sale el icono.</p>
-      <button class="icon-btn" data-action="hide-install" aria-label="Ocultar">${svg("close")}</button></div>`;
+    return `<div class="install install-big"><div class="grow">
+        <p><b>Descárgala como app</b><br>Con su icono, a pantalla completa y funciona sin internet.</p>
+        <a class="btn mt12" href="${APP_URL}" target="_blank" rel="noopener">${svg("add")}Abrir para instalar</a>
+        <p class="small mt12">Si sale «404 · Page not found», falta activar la web en GitHub (solo una vez):
+          <a href="${PAGES_SETTINGS}" target="_blank" rel="noopener">abrir ajustes</a> → <b>Deploy from a branch</b> → rama
+          <b>ccr-967317e2-ixw499</b> y carpeta <b>/docs</b> → <b>Save</b>. Espera un par de minutos y vuelve a tocar el botón.</p>
+      </div>
+      <button class="icon-btn ghost" data-action="hide-install" aria-label="Ocultar">${svg("close")}</button></div>`;
   }
   if (installPrompt) {
-    return `<div class="install"><p><b>Tenla como app:</b> con icono en tu pantalla de inicio y a pantalla completa.</p>
-      <button class="btn" data-action="install">Instalar</button></div>`;
+    return `<div class="install"><p><b>Instálala como app:</b> con su icono, a pantalla completa y sin internet.</p>
+      <button class="btn" data-action="install">${svg("add")}Instalar</button></div>`;
   }
   return `<div class="install"><p><b>Tenla como app:</b> en Chrome toca ⋮ (arriba a la derecha) → <b>Añadir a pantalla de inicio</b> o <b>Instalar aplicación</b>.</p>
     <button class="icon-btn" data-action="hide-install" aria-label="Ocultar">${svg("close")}</button></div>`;
@@ -1875,7 +1893,7 @@ document.addEventListener("click", (e) => {
       installPrompt?.prompt();
       break;
     case "hide-install":
-      storage.set("mipanel:ocultar-instalar", true);
+      storage.set("mipanel:ocultar-instalar-2", true);
       render();
       break;
     case "bt":

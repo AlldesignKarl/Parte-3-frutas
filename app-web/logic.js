@@ -354,3 +354,36 @@ export function friendlyModel(code) {
   for (const [prefix, name] of Object.entries(z)) if (c.startsWith(prefix)) return `Samsung ${name}`;
   return null;
 }
+
+// ---------------------------------------------------------------- Batería: tiempo estimado propio
+
+/**
+ * Añade una lectura de batería al registro si el nivel ha cambiado. El registro se reinicia al
+ * enchufar/desenchufar o si la última lectura tiene más de 2 h.
+ */
+export function addBatterySample(log, level, charging, now) {
+  const fresh = { charging, samples: [{ t: now, level }] };
+  if (!log || log.charging !== charging || !log.samples.length) return fresh;
+  const last = log.samples[log.samples.length - 1];
+  if (now - last.t > 2 * 3600000) return fresh;
+  if (Math.abs(last.level - level) < 0.005) return log;
+  return { charging, samples: [...log.samples, { t: now, level }].slice(-40) };
+}
+
+/**
+ * Tiempo hasta el 100 % (cargando) o hasta el 0 % (descargando) con el ritmo visto en este rato.
+ * La primera lectura es al abrir (a mitad de un 1 %), así que se mide desde el primer cambio visto:
+ * hace falta ver cambiar el nivel al menos dos veces. Devuelve milisegundos o null.
+ */
+export function batteryEstimate(log, level, charging) {
+  if (!log || log.charging !== charging || log.samples.length < 3) return null;
+  const from = log.samples[1];
+  const to = log.samples[log.samples.length - 1];
+  const dl = to.level - from.level;
+  const dt = to.t - from.t;
+  if (dt < 30000 || Math.abs(dl) < 0.009) return null;
+  const perMs = dl / dt;
+  if (charging && perMs > 0) return Math.round((1 - level) / perMs);
+  if (!charging && perMs < 0) return Math.round(level / -perMs);
+  return null;
+}
