@@ -702,15 +702,50 @@ window.addEventListener("appinstalled", () => {
   toast("¡Instalada! Ya la tienes en la pantalla de inicio");
   render();
 });
+// Samsung Internet empaqueta la app en un formato antiguo y Google Play Protect lo bloquea
+// ("se desarrolló para una versión anterior de Android"); Chrome la instala bien.
+const IS_SAMSUNG = /SamsungBrowser/i.test(navigator.userAgent);
+
+/** Enlace de Android que abre una dirección directamente en Chrome (y si no está, en el navegador). */
+function chromeIntent(url) {
+  const u = new URL(url);
+  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${u.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+}
+
+async function copyLink(url) {
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("Enlace copiado: ábrelo en Chrome y pégalo en la barra de direcciones", null, null, 6000);
+  } catch {
+    // Sin portapapeles: se enseña el enlace para copiarlo a mano.
+    const root = overlay(`<div class="scrim"><div class="dialog" role="dialog" aria-modal="true">
+      <h2>Copia este enlace</h2><p class="hint" style="margin-top:0">Mantén pulsado para copiarlo y pégalo en Chrome.</p>
+      <p class="link-box">${esc(url)}</p>
+      <div class="actions"><button class="btn text" data-close>Cerrar</button></div></div></div>`);
+    const box = $(".link-box", root);
+    getSelection()?.selectAllChildren(box);
+  }
+}
+
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 
 function installBanner() {
-  if (isStandalone() || storage.get("mipanel:ocultar-instalar-2", false)) return "";
+  if (isStandalone()) return "";
+  if (!ARTIFACT && IS_SAMSUNG) {
+    return `<div class="install install-big"><div class="grow">
+        <p><b>Instálala desde Chrome</b><br>Samsung Internet la instala en un formato antiguo y Google Play Protect la bloquea. Con Chrome se instala bien.</p>
+        <div class="install-actions"><a class="btn" href="${esc(chromeIntent(location.href.split("#")[0]))}">${svg("add")}Abrir en Chrome</a>
+        <button class="btn glass" type="button" data-action="copy-link">Copiar enlace</button></div>
+        <p class="small mt12">En Chrome toca <b>Instalar</b> (o ⋮ → <b>Instalar aplicación</b>). Si aun así no deja, en Chrome usa ⋮ → <b>Añadir a pantalla de inicio</b> → <b>Crear acceso directo</b>.</p>
+      </div></div>`;
+  }
+  if (storage.get("mipanel:ocultar-instalar-2", false)) return "";
   if (ARTIFACT) {
     return `<div class="install install-big"><div class="grow">
         <p><b>Descárgala como app</b><br>Con su icono, a pantalla completa y funciona sin internet.</p>
-        <a class="btn mt12" href="${APP_URL}" target="_blank" rel="noopener">${svg("add")}Abrir para instalar</a>
-        <p class="small mt12">Se abre la app en Chrome: toca <b>Instalar</b> (o ⋮ → <b>Instalar aplicación</b>). Si se abre dentro de Claude, toca ⋮ → <b>Abrir en Chrome</b> primero.</p>
+        <div class="install-actions"><a class="btn" href="${APP_URL}" target="_blank" rel="noopener">${svg("add")}Abrir para instalar</a>
+        <button class="btn glass" type="button" data-action="copy-link">Copiar enlace</button></div>
+        <p class="small mt12">Instálala con <b>Chrome</b>: con Samsung Internet, Google Play Protect la bloquea. Si se abre en otro navegador, la propia app te da un botón para pasar a Chrome; o copia el enlace y pégalo en Chrome. Allí toca <b>Instalar</b> (o ⋮ → <b>Instalar aplicación</b>).</p>
         <p class="small mt8">¿No carga? Otra dirección: <a href="${PAGES_URL}" target="_blank" rel="noopener">alldesignkarl.github.io</a> (necesita activar GitHub Pages en
           <a href="${PAGES_SETTINGS}" target="_blank" rel="noopener">ajustes</a> → Deploy from a branch → <b>ccr-967317e2-ixw499</b> + <b>/docs</b> → Save).</p>
       </div>
@@ -1894,6 +1929,9 @@ document.addEventListener("click", (e) => {
   switch (el.dataset.action) {
     case "install":
       installPrompt?.prompt();
+      break;
+    case "copy-link":
+      copyLink(ARTIFACT ? APP_URL : location.href.split("#")[0]);
       break;
     case "hide-install":
       storage.set("mipanel:ocultar-instalar-2", true);
