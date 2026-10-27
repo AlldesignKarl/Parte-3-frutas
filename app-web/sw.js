@@ -1,6 +1,6 @@
 // Funciona sin conexión: primero intenta la red (para tener siempre la última versión)
 // y, si no hay, usa la copia guardada. Las peticiones a otros dominios no se tocan.
-const CACHE = "mipanel-v3";
+const CACHE = "mipanel-v4";
 const FONT_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com"];
 const SHELL = [
   "index.html", "styles.css", "app.js", "logic.js", "charts.js", "manifest.webmanifest",

@@ -42,6 +42,10 @@ test("medias de notas", () => {
   assert.deepEqual(subjects.map((s) => s.name), ["Historia", "Matemáticas"]);
   assert.equal(L.fmtGrade(subjects[1].average), "4,5");
   assert.equal(L.fmtGrade(subjects[0].average), "7,67");
+  const names = L.bySubject([g("Ingles", 7, 6), g("fisica y quimica", 6, 7), g("MATEMATICAS", 5, 8), g("Lengua", 8, 9)]).map((s) => s.name);
+  assert.deepEqual(names, ["Física y química", "Inglés", "Lengua", "MATEMÁTICAS"]);
+  assert.equal(L.withAccents("Tecnologia de Ingles"), "Tecnología de Inglés");
+  assert.equal(L.withAccents("Inglés tecnico"), "Inglés tecnico"); // si ya lleva tildes, se respeta
   assert.equal(L.parseGrade("4,5"), 4.5);
   assert.equal(L.parseGrade("11"), null);
   assert.equal(L.gradeLabel(4.5), "Suspenso");
@@ -104,4 +108,58 @@ test("tiempo de batería calculado por la app", () => {
   assert.equal(Math.round(L.batteryEstimate(log, 0.50, false) / min), 500);
   // Una lectura de hace más de 2 h no vale
   assert.equal(L.addBatterySample(log, 0.40, false, 200 * min).samples.length, 1);
+});
+
+test("horario: clase de ahora, la siguiente y el próximo día con clase", () => {
+  const c = (id, day, start, end, subject) => ({ id, day, start, end, subject, room: "" });
+  const schedule = [c("a", 1, "09:25", "10:20", "Inglés"), c("b", 1, "08:30", "09:25", "Matemáticas"), c("c", 3, "08:30", "09:25", "Lengua")];
+  assert.equal(L.isoWeekday("2026-10-26"), 1); // lunes
+  assert.equal(L.isoWeekday("2026-11-01"), 7); // domingo
+  assert.deepEqual(L.classesOn(schedule, 1).map((x) => x.id), ["b", "a"]);
+  let s = L.classStatus(schedule, 1, L.toMinutes("09:00"));
+  assert.equal(s.current.subject, "Matemáticas");
+  assert.equal(s.next.subject, "Inglés");
+  s = L.classStatus(schedule, 1, L.toMinutes("09:25")); // justo al cambiar de clase
+  assert.equal(s.current.subject, "Inglés");
+  assert.equal(s.next, null);
+  s = L.classStatus(schedule, 1, L.toMinutes("07:00"));
+  assert.equal(s.current, null);
+  assert.equal(s.next.subject, "Matemáticas");
+  assert.deepEqual(L.nextSchoolDay(schedule, 1), { day: 3, offset: 2, first: schedule[2] });
+  assert.equal(L.nextSchoolDay(schedule, 3).day, 1); // del miércoles al lunes siguiente
+  assert.equal(L.nextSchoolDay([], 1), null);
+  assert.equal(L.fmtHour("08:05"), "8:05");
+});
+
+test("logros: salen de lo apuntado y la racha más larga cuenta páginas y foco", () => {
+  const task = (id, done, pages, examDate, completedAt, dailyLog) =>
+    ({ id, title: id, totalPages: 100, pagesDone: pages, examDate, completedAt: done ? completedAt : null, dailyLog, createdAt: 1 });
+  const at = (iso) => L.isoToDate(iso).getTime() + 12 * 3600000;
+  const tasks = [
+    task("a", true, 30, "2026-10-20", at("2026-10-18"), { "2026-10-10": 10, "2026-10-11": 20 }),
+    task("b", false, 25, null, null, { "2026-10-13": 25 }),
+  ];
+  const focus = { "2026-10-12": 30, "2026-10-20": 0 };
+  assert.equal(L.bestStreak(tasks, focus), 4); // del 10 al 13 (el 12 solo con foco)
+  const list = L.achievements(tasks, [{ id: "g", subject: "Inglés", value: 9.5, date: "2026-10-01", createdAt: 1 }], focus);
+  const get = (id) => list.find((x) => x.id === id);
+  assert.equal(get("tarea-1").done, true);
+  assert.equal(get("a-tiempo").done, true);
+  assert.equal(get("paginas-50").done, true); // 30 + 25
+  assert.deepEqual([get("paginas-250").cur, get("paginas-250").done], [55, false]);
+  assert.equal(get("racha-3").done, true);
+  assert.equal(get("racha-7").done, false);
+  assert.equal(get("foco-25").done, true);
+  assert.equal(get("nota-9").done, true);
+  assert.equal(get("nota-10").done, false);
+  assert.equal(get("aprobado").done, false); // hace falta un mínimo de 3 asignaturas
+  assert.equal(L.achievements([], [], {}).filter((x) => x.done).length, 0);
+});
+
+test("tiempo: códigos de la OMM", () => {
+  assert.equal(L.weatherInfo(0, true).label, "Despejado");
+  assert.equal(L.weatherInfo(0, false).icon, "🌙");
+  assert.equal(L.weatherInfo(63).label, "Lluvia");
+  assert.equal(L.weatherInfo(95).label, "Tormenta");
+  assert.equal(L.weatherInfo(1234).label, "—");
 });

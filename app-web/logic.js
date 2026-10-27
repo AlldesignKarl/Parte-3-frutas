@@ -140,6 +140,28 @@ export function cleanSubjectName(name) {
   return s.charAt(0).toLocaleUpperCase("es-ES") + s.slice(1);
 }
 
+// Tildes de las palabras habituales en nombres de asignaturas: se escribe "ingles" deprisa y se ve "Inglés".
+const ACCENTED = Object.fromEntries(
+  ("matemáticas inglés francés alemán catalán física química biología geología geografía educación música " +
+    "tecnología informática filosofía economía latín religión plástica técnico técnica españa ética psicología " +
+    "ingeniería artística comunicación programación robótica computación lógica estadística álgebra cálculo " +
+    "análisis gramática ortografía física-química dibujo")
+    .split(" ")
+    .map((w) => [w.normalize("NFD").replace(/\p{Mn}+/gu, ""), w])
+);
+
+/** Pone las tildes que faltan en un nombre de asignatura. Si ya lleva alguna, se respeta tal cual. */
+export function withAccents(name) {
+  if (/[^\x00-\x7F]/.test(name)) return name;
+  return name.replace(/[A-Za-z]+(?:-[A-Za-z]+)?/g, (w) => {
+    const fixed = ACCENTED[w.toLowerCase()];
+    if (!fixed || fixed === w.toLowerCase()) return w;
+    if (w.length > 1 && w === w.toUpperCase()) return fixed.toLocaleUpperCase("es-ES");
+    if (w[0] === w[0].toUpperCase()) return fixed.charAt(0).toLocaleUpperCase("es-ES") + fixed.slice(1);
+    return fixed;
+  });
+}
+
 /** El nombre que más se ha escrito; si empatan, el que lleva tildes y, si no, el más reciente. */
 function preferredName(list) {
   const counts = new Map();
@@ -149,7 +171,7 @@ function preferredName(list) {
     counts.set(name, { n: c.n + 1, last: Math.max(c.last, g.createdAt) });
   }
   const accents = (s) => (s.match(/[^\x00-\x7F]/g) || []).length;
-  return [...counts.entries()].sort(([a, x], [b, y]) => y.n - x.n || accents(b) - accents(a) || y.last - x.last)[0][0];
+  return withAccents([...counts.entries()].sort(([a, x], [b, y]) => y.n - x.n || accents(b) - accents(a) || y.last - x.last)[0][0]);
 }
 
 const collator = new Intl.Collator("es-ES", { sensitivity: "base" });
@@ -386,4 +408,126 @@ export function batteryEstimate(log, level, charging) {
   if (charging && perMs > 0) return Math.round((1 - level) / perMs);
   if (!charging && perMs < 0) return Math.round(level / -perMs);
   return null;
+}
+
+// ---------------------------------------------------------------- Horario de clases
+
+/** Días de la semana: 1 = lunes … 7 = domingo. */
+export const WEEKDAYS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+export const WEEKDAY_LETTERS = ["L", "M", "X", "J", "V", "S", "D"];
+
+export function isoWeekday(iso) {
+  const d = isoToDate(iso).getDay();
+  return d === 0 ? 7 : d;
+}
+
+/** "08:30" → 510 (minutos desde medianoche). */
+export function toMinutes(hhmm) {
+  const [h, m] = String(hhmm).split(":").map(Number);
+  return h * 60 + m;
+}
+
+/** "08:30" → "8:30". */
+export const fmtHour = (hhmm) => String(hhmm).replace(/^0(\d)/, "$1");
+
+/** Las clases de un día, por hora de empezar. */
+export function classesOn(schedule, weekday) {
+  return schedule
+    .filter((c) => c.day === weekday)
+    .sort((a, b) => toMinutes(a.start) - toMinutes(b.start) || toMinutes(a.end) - toMinutes(b.end));
+}
+
+/** Las clases del día y cuál toca ahora y cuál después, a una hora (minutos desde medianoche). */
+export function classStatus(schedule, weekday, minute) {
+  const list = classesOn(schedule, weekday);
+  const current = list.find((c) => toMinutes(c.start) <= minute && minute < toMinutes(c.end)) || null;
+  const next = list.find((c) => toMinutes(c.start) > minute) || null;
+  return { list, current, next };
+}
+
+/** El próximo día con clase después de `weekday`: { day, offset (días), first (primera clase) }. */
+export function nextSchoolDay(schedule, weekday) {
+  for (let i = 1; i <= 7; i++) {
+    const day = ((weekday - 1 + i) % 7) + 1;
+    const list = classesOn(schedule, day);
+    if (list.length) return { day, offset: i, first: list[0] };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- Logros
+
+/** Días en los que se estudió algo (páginas o minutos de foco), ordenados. */
+function studiedDays(tasks, focus = {}) {
+  const pages = {};
+  for (const t of tasks) for (const [day, n] of Object.entries(t.dailyLog || {})) pages[day] = (pages[day] || 0) + n;
+  const days = new Set(Object.keys(pages).filter((d) => pages[d] > 0));
+  for (const [day, m] of Object.entries(focus)) if (m > 0) days.add(day);
+  return [...days].sort();
+}
+
+/** La racha más larga de días seguidos estudiando en todo el historial. */
+export function bestStreak(tasks, focus = {}) {
+  let best = 0;
+  let run = 0;
+  let prev = null;
+  for (const day of studiedDays(tasks, focus)) {
+    run = prev && daysBetween(prev, day) === 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = day;
+  }
+  return best;
+}
+
+/**
+ * Logros calculados con lo que hay apuntado (nada inventado). Cada uno: { id, icon, title, desc,
+ * cur, goal, done }. `cur` y `goal` sirven para la barra de progreso de los que tienen varios pasos.
+ */
+export function achievements(tasks, grades, focus = {}) {
+  const done = tasks.filter(isDone);
+  const pages = tasks.reduce((s, t) => s + Math.max(0, t.pagesDone || 0), 0);
+  const early = done.filter((t) => t.examDate && todayIso(new Date(t.completedAt)) < t.examDate).length;
+  const streak = bestStreak(tasks, focus);
+  const minutes = Object.values(focus).reduce((s, m) => s + Math.max(0, m), 0);
+  const top = grades.reduce((m, g) => Math.max(m, g.value), 0);
+  const subjects = bySubject(grades);
+  const passed = subjects.filter((s) => s.average >= PASS_GRADE).length;
+  const list = [
+    ["tarea-1", "📘", "Primera tarea", "Termina tu primera tarea", done.length, 1],
+    ["tareas-10", "🏅", "Imparable", "Termina 10 tareas", done.length, 10],
+    ["a-tiempo", "🎯", "Con tiempo", "Termina una tarea antes del día de su examen", early, 1],
+    ["paginas-50", "📖", "Buen ritmo", "Estudia 50 páginas", pages, 50],
+    ["paginas-250", "📚", "Ratón de biblioteca", "Estudia 250 páginas", pages, 250],
+    ["paginas-1000", "🏛️", "Biblioteca andante", "Estudia 1000 páginas", pages, 1000],
+    ["racha-3", "🔥", "Racha de 3", "Estudia 3 días seguidos", streak, 3],
+    ["racha-7", "⚡", "Semana perfecta", "Estudia 7 días seguidos", streak, 7],
+    ["racha-30", "👑", "Un mes sin fallar", "Estudia 30 días seguidos", streak, 30],
+    ["foco-25", "⏱️", "Primera sesión", "Suma 25 minutos de foco", minutes, 25],
+    ["foco-600", "🧘", "Mente zen", "Suma 10 horas de foco", minutes, 600],
+    ["nota-9", "🌟", "Sobresaliente", "Saca un 9 o más", top >= 9 ? 1 : 0, 1],
+    ["nota-10", "💯", "Un 10", "Saca un 10", top >= MAX_GRADE ? 1 : 0, 1],
+    ["aprobado", "✅", "Todo aprobado", "Ten 3 asignaturas o más y todas aprobadas",
+      subjects.length >= 3 && passed === subjects.length ? 1 : 0, 1],
+  ];
+  return list.map(([id, icon, title, desc, cur, goal]) => ({ id, icon, title, desc, cur: Math.min(cur, goal), goal, done: cur >= goal }));
+}
+
+// ---------------------------------------------------------------- Tiempo (códigos WMO de Open-Meteo)
+
+/** Texto e icono para un código del tiempo de la OMM. */
+export function weatherInfo(code, isDay = true) {
+  const c = Number(code);
+  if (c === 0) return { label: "Despejado", icon: isDay ? "☀️" : "🌙" };
+  if (c === 1) return { label: "Casi despejado", icon: isDay ? "🌤️" : "🌙" };
+  if (c === 2) return { label: "Algunas nubes", icon: isDay ? "⛅" : "☁️" };
+  if (c === 3) return { label: "Nublado", icon: "☁️" };
+  if (c === 45 || c === 48) return { label: "Niebla", icon: "🌫️" };
+  if (c >= 51 && c <= 57) return { label: "Llovizna", icon: "🌦️" };
+  if (c === 61 || c === 80) return { label: "Lluvia débil", icon: "🌦️" };
+  if (c === 63 || c === 81) return { label: "Lluvia", icon: "🌧️" };
+  if (c === 65 || c === 82) return { label: "Lluvia fuerte", icon: "🌧️" };
+  if (c === 66 || c === 67) return { label: "Lluvia helada", icon: "🌧️" };
+  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return { label: "Nieve", icon: "🌨️" };
+  if (c === 95 || c === 96 || c === 99) return { label: "Tormenta", icon: "⛈️" };
+  return { label: "—", icon: "🌡️" };
 }

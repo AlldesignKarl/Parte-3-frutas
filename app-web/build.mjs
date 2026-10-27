@@ -32,6 +32,7 @@ const html = readFileSync(join(here, "index.html"), "utf8");
 const body = html.slice(html.indexOf(">", html.indexOf("<body")) + 1, html.indexOf("</body>")).trim();
 const page = `<title>Mi Panel</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="color-scheme" content="dark">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap">
 <style>${css.trim()}</style>
 ${body}

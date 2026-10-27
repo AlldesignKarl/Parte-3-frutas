@@ -137,8 +137,9 @@ main {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
-.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.card-head h2 { font-size: 16px; font-weight: 700; margin: 0; flex: 1; min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 16px; }
+/* El título no se parte en dos líneas: si no cabe, la etiqueta de la derecha baja a la siguiente. */
+.card-head h2 { font-size: 16px; font-weight: 700; margin: 0; flex: 1 0 auto; white-space: nowrap; }
 .badge-icon {
   width: 38px; height: 38px; border-radius: 12px; flex: none;
   display: grid; place-items: center;
@@ -171,45 +172,33 @@ main {
 .pills .pill { white-space: nowrap; }
 .pills { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Barra de progreso con luz */
-.meter { height: 10px; border-radius: 99px; background: var(--track); overflow: hidden; }
-.meter > i {
-  position: relative; display: block; height: 100%; border-radius: 99px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent);
-  transition: width 0.6s cubic-bezier(.2, .8, .2, 1);
-}
-.meter > i::after {
-  content: ""; position: absolute; inset: 0; border-radius: inherit;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
-  background-size: 40% 100%; background-repeat: no-repeat;
-  animation: shine 2.8s ease-in-out infinite;
-}
+/* Barra de progreso con luz (SVG, colores lisos) */
+.meter { --meter: var(--accent); display: block; width: 100%; height: 10px; overflow: visible; }
 .meter.thick { height: 12px; }
-.meter.good > i { background: linear-gradient(90deg, var(--good), #7affd0); box-shadow: 0 0 14px color-mix(in srgb, var(--good) 70%, transparent); }
-@keyframes shine { from { background-position: -60% 0; } to { background-position: 160% 0; } }
-
-/* Anillo de progreso (conic-gradient) */
-.ring {
-  --p: 0; --c1: var(--accent); --c2: var(--accent-2);
-  position: relative; flex: none; width: 132px; height: 132px; border-radius: 50%;
-  background: conic-gradient(var(--c1), var(--c2) calc(var(--p) * 1%), var(--track) 0);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px));
-          mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px));
-  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--c1) 55%, transparent));
+.meter-track { fill: var(--track); }
+.meter-fill {
+  fill: var(--meter);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--meter) 70%, transparent));
 }
+
+/* Anillo de progreso (SVG: pista + arco liso con luz, empieza arriba) */
+.ring {
+  --p: 0; --c1: var(--accent); --c2: var(--accent-2); --sw: 10;
+  display: block; flex: none; width: 132px; height: 132px; overflow: visible;
+}
+.ring circle { fill: none; stroke-width: calc(var(--sw) * 1px); }
+.ring-track { stroke: var(--track); }
+.ring-bar {
+  stroke: var(--c1); stroke-linecap: round;
+  stroke-dasharray: calc(var(--p) * 1px) 200px;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c1) 80%, transparent));
+  transition: stroke-dasharray 0.6s cubic-bezier(.2, .8, .2, 1);
+}
+.ring.empty .ring-bar { stroke: none; }
 .ring-wrap { position: relative; flex: none; display: grid; place-items: center; }
 .ring-wrap .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
-.ring-wrap.sm .ring {
-  width: 60px; height: 60px;
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
-          mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
-}
-.ring-wrap.md .ring {
-  width: 100px; height: 100px;
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px));
-          mask: radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px));
-}
+.ring-wrap.sm .ring { width: 60px; height: 60px; --sw: 11; }
+.ring-wrap.md .ring { width: 100px; height: 100px; }
 
 .btn {
   border: 0; border-radius: 99px; padding: 11px 20px; min-height: 46px; font-weight: 700;
@@ -322,17 +311,17 @@ main {
 .avg { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
 .hero {
   font-size: 68px; line-height: 0.95; font-weight: 800; letter-spacing: -0.04em;
-  background: linear-gradient(135deg, #fff3cf, var(--amber) 45%, var(--coral));
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 0 24px color-mix(in srgb, var(--amber) 45%, transparent));
+  color: #fff3d6;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--amber) 75%, transparent), 0 0 46px color-mix(in srgb, var(--coral) 45%, transparent);
 }
+.hero .dec { color: var(--amber); }
 .chart svg { display: block; width: 100%; overflow: visible; }
-.chart .bar { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent)); }
+.chart .bar { fill: var(--accent); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent)); }
 .chart .grid { stroke: var(--stroke-strong); stroke-width: 1; }
 .chart .pass { stroke: color-mix(in srgb, var(--accent) 60%, transparent); stroke-width: 1; }
 .chart text { fill: var(--text); font-size: 14px; font-family: var(--font-body); }
 .chart text.axis { fill: var(--faint); font-size: 11px; }
-.chart text.value { font-weight: 700; font-family: var(--font-display); paint-order: stroke; stroke: #11162a; stroke-width: 4px; stroke-linejoin: round; }
+.chart text.value { font-weight: 700; font-family: var(--font-display); fill: var(--text); }
 .chart .hit { fill: transparent; stroke: none; cursor: pointer; }
 .chart .sel { fill: var(--glass-strong); stroke: none; }
 .chart-detail { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
@@ -430,7 +419,7 @@ main {
 .sheet .bar { position: relative; display: flex; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top, 0px) + 8px) 12px 8px; }
 .sheet .bar h2 { flex: 1; font-family: var(--font-display); font-size: 20px; font-weight: 700; margin: 0 0 0 4px; }
 .sheet .bar .btn { min-height: 40px; padding: 8px 18px; }
-.sheet form { position: relative; flex: 1; overflow: auto; padding: 12px 20px 32px; max-width: 640px; width: 100%; margin: 0 auto; }
+.sheet form, .sheet .sheet-body { position: relative; flex: 1; overflow: auto; padding: 12px 20px 32px; max-width: 640px; width: 100%; margin: 0 auto; }
 
 .field { display: block; margin-bottom: 16px; }
 .field > span { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin: 0 0 7px 4px; }
@@ -482,7 +471,7 @@ main {
 }
 .celebrate h2 {
   font-size: 34px; margin: 0; font-weight: 800;
-  background: linear-gradient(135deg, #d8fff0, var(--good)); -webkit-background-clip: text; background-clip: text; color: transparent;
+  color: #c9ffe8; text-shadow: 0 0 22px color-mix(in srgb, var(--good) 65%, transparent);
 }
 .celebrate .btn { --accent: var(--good); --accent-2: #7affd0; }
 @keyframes glowpulse { 50% { transform: scale(1.06); filter: brightness(1.2); } }
@@ -514,13 +503,13 @@ main {
 }
 
 /* ---------------------------------------------------------------- Gráficas nuevas */
-.chart .col { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)); }
-.chart .col.today { filter: drop-shadow(0 0 12px var(--accent)); }
+.chart .col { fill: var(--accent); fill-opacity: 0.7; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)); }
+.chart .col.today { fill-opacity: 1; filter: drop-shadow(0 0 12px var(--accent)); }
 .chart .zero { fill: var(--stroke-strong); }
 .chart text.today-label { fill: var(--accent); font-weight: 700; }
 .chart .line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 6px var(--accent)); }
-.chart .area { stroke: none; }
-.chart .dot { fill: var(--accent); stroke: #0d1224; stroke-width: 2; }
+.chart .area { stroke: none; fill: var(--accent); fill-opacity: 0.1; }
+.chart .dot { fill: var(--accent); stroke: none; }
 .chart .dot.last, .chart .dot.picked { filter: drop-shadow(0 0 8px var(--accent)); }
 .chart.anim .col { animation: growY 0.7s cubic-bezier(.2, .8, .2, 1) both; transform-box: fill-box; transform-origin: bottom; }
 .chart.anim .bar { animation: growX 0.7s cubic-bezier(.2, .8, .2, 1) both; transform-box: fill-box; transform-origin: left; }
@@ -578,12 +567,8 @@ main {
 /* Foco */
 .focus-card { text-align: center; }
 .ring-wrap.xl { margin: 0 auto; }
-.ring-wrap.xl .ring {
-  width: min(250px, 68vw); height: min(250px, 68vw);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 15px), #000 calc(100% - 14px));
-          mask: radial-gradient(farthest-side, transparent calc(100% - 15px), #000 calc(100% - 14px));
-  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--c1) 60%, transparent));
-}
+.ring-wrap.xl .ring { width: min(250px, 68vw); height: min(250px, 68vw); --sw: 6; }
+.ring-wrap.xl .ring-bar { transition: stroke-dasharray 1s linear; }
 .ring-wrap.xl.live .ring { animation: breathe 3.2s ease-in-out infinite; }
 .ring-wrap.xl .center { gap: 4px; }
 .focus-time { font-family: var(--font-display); font-size: 56px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -601,7 +586,7 @@ main {
   width: 92px; height: 92px; margin: 0 auto 6px; border-radius: 50%; display: grid; place-items: center; font-size: 46px;
   background: radial-gradient(circle, color-mix(in srgb, var(--accent) 35%, transparent), transparent 70%);
 }
-@keyframes breathe { 50% { filter: drop-shadow(0 0 30px color-mix(in srgb, var(--c1) 85%, transparent)); } }
+@keyframes breathe { 50% { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--c1) 85%, transparent)); } }
 
 @keyframes fade { from { opacity: 0; } }
 @keyframes up { from { transform: translateY(24px); opacity: 0; } }
@@ -618,3 +603,86 @@ main {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Botones con icono, botón de texto compacto y dos campos en una fila */
+.btn > svg { width: 20px; height: 20px; fill: currentColor; vertical-align: -5px; margin-right: 8px; }
+.install .btn > svg, .focus-controls .btn.play > svg { margin-right: 0; vertical-align: 0; }
+.btn.slim { min-height: 34px; padding: 6px 10px; font-size: 14px; }
+.card-head .btn.slim { margin: -6px -8px -6px 0; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.two .field { margin-bottom: 8px; }
+.sheet small.error { display: block; color: var(--bad); font-size: 13px; margin: 0 0 12px 4px; min-height: 1px; }
+
+/* Horario: hoy en clase */
+.class-list { display: grid; gap: 8px; }
+.class-row { display: flex; gap: 14px; align-items: flex-start; padding: 10px 12px; border-radius: 18px; background: var(--glass); border: 1px solid var(--stroke); }
+.class-row.past { opacity: 0.45; }
+.class-row.now { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 9%, transparent); box-shadow: 0 0 24px -10px var(--accent); }
+.class-row .small { display: block; }
+.class-time { flex: none; width: 46px; display: grid; text-align: center; font-variant-numeric: tabular-nums; }
+.class-time b { font-family: var(--font-display); font-size: 16px; line-height: 1.2; }
+.class-time span { font-size: 12px; color: var(--muted); }
+.class-row.now .class-time b { color: var(--accent); }
+.invite {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px 18px; border-radius: var(--radius);
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 6%, transparent); color: var(--text);
+}
+.invite svg { width: 26px; height: 26px; fill: var(--accent); flex: none; }
+.invite .small { display: block; margin-top: 2px; }
+
+/* Horario: editor */
+.segmented.days { grid-template-columns: repeat(7, 1fr); }
+.segmented.days button { padding: 10px 0; position: relative; }
+.segmented.days button.has::after {
+  content: ""; position: absolute; left: 50%; bottom: 4px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: currentColor; opacity: 0.7;
+}
+.class-edit-list { display: grid; gap: 8px; margin-top: 10px; }
+.class-edit { display: flex; align-items: center; gap: 4px; border-radius: 18px; background: var(--glass); border: 1px solid var(--stroke); padding-right: 4px; }
+.class-edit-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 12px; border: 0; background: transparent; color: inherit; text-align: left; }
+.class-edit-main .small, .class-edit-main .strong { display: block; }
+
+/* El tiempo */
+.weather { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.weather-icon { font-size: 54px; line-height: 1; filter: drop-shadow(0 0 18px color-mix(in srgb, var(--accent) 55%, transparent)); }
+.weather-temp { font-size: 46px; font-weight: 700; line-height: 1; letter-spacing: -0.03em; text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 55%, transparent); }
+.weather-temp small { font-size: 0.55em; color: var(--accent); vertical-align: top; }
+
+/* Foco: sonido de fondo */
+.focus-sound { margin: 0 0 6px; }
+.focus-sound > span { display: flex; align-items: center; gap: 6px; }
+.focus-sound > span svg { width: 16px; height: 16px; fill: var(--accent); }
+.segmented.sounds { grid-template-columns: repeat(4, 1fr); margin-bottom: 0; }
+.segmented.sounds button { padding: 10px 0; }
+
+/* Logros */
+.badges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.badge {
+  display: grid; justify-items: center; align-content: start; gap: 4px; padding: 12px 6px 10px; min-width: 0;
+  border-radius: 18px; border: 1px solid var(--stroke); background: var(--glass); color: var(--text); text-align: center;
+}
+.badge b { font-size: 12.5px; line-height: 1.2; }
+.badge > span:not(.badge-emoji) { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.badge .meter { height: 4px; margin-top: 2px; width: 80%; }
+.badge-emoji {
+  width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 24px;
+  background: var(--glass-strong); filter: grayscale(1); opacity: 0.45;
+}
+.badge.got { border-color: color-mix(in srgb, var(--warning) 55%, transparent); background: color-mix(in srgb, var(--warning) 7%, transparent); }
+.badge.got .badge-emoji { filter: none; opacity: 1; box-shadow: 0 0 0 2px var(--warning), 0 0 22px -2px color-mix(in srgb, var(--warning) 70%, transparent); }
+.badge.got > span:not(.badge-emoji) { color: var(--warning); font-weight: 700; }
+.badge[aria-pressed="true"] { border-color: var(--text); }
+
+/* Samsung Internet: su modo oscuro oscurece los fondos de colores vivos (botones, degradados) aunque
+   la página ya sea oscura, y deja bien el texto, los bordes y las sombras. Ahí los botones principales
+   van en cristal con borde y texto de luz, que se ven igual con y sin ese modo. */
+.samsung .btn:not(.glass):not(.outline):not(.text):not(.danger),
+.samsung .fab,
+.samsung .segmented button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-raised));
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 22px -6px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+.samsung .orb { background: color-mix(in srgb, var(--orb) 14%, var(--bg-raised)); border: 3px solid var(--orb); }
+.samsung .status-dot { background: none; border: 2px solid var(--accent); }
+.samsung .today-line.done .status-dot { border-color: var(--good); }

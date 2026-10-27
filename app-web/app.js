@@ -40,6 +40,10 @@ const ICON = {
   target: "M12,2C6.49,2 2,6.49 2,12s4.49,10 10,10 10,-4.49 10,-10S17.51,2 12,2zM12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8zM12,7c-2.76,0 -5,2.24 -5,5s2.24,5 5,5 5,-2.24 5,-5 -2.24,-5 -5,-5zM12,15c-1.66,0 -3,-1.34 -3,-3s1.34,-3 3,-3 3,1.34 3,3 -1.34,3 -3,3z",
   trend: "M16,6l2.29,2.29 -4.88,4.88 -4,-4L2,16.59 3.41,18l6,-6 4,4 6.3,-6.29L22,12V6z",
   bluetooth: "M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41V22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59V5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z",
+  sun: "M6.76,4.84l-1.8,-1.79 -1.41,1.41 1.79,1.79 1.42,-1.41zM4,10.5H1v2h3v-2zM13,0.55h-2V3.5h2V0.55zM20.45,4.46l-1.41,-1.41 -1.79,1.79 1.41,1.41 1.79,-1.79zM17.24,18.16l1.79,1.8 1.41,-1.41 -1.8,-1.79 -1.4,1.4zM20,10.5v2h3v-2h-3zM12,5.5c-3.31,0 -6,2.69 -6,6s2.69,6 6,6 6,-2.69 6,-6 -2.69,-6 -6,-6zM11,22.45h2V19.5h-2v2.95zM3.55,18.54l1.41,1.41 1.79,-1.8 -1.41,-1.41 -1.79,1.8z",
+  trophy: "M19,5h-2V3H7v2H5C3.9,5 3,5.9 3,7v1c0,2.55 1.92,4.63 4.39,4.94c0.63,1.5 1.98,2.63 3.61,2.96V19H7v2h10v-2h-4v-3.1c1.63,-0.33 2.98,-1.46 3.61,-2.96C19.08,12.63 21,10.55 21,8V7C21,5.9 20.1,5 19,5zM5,8V7h2v3.82C5.84,10.4 5,9.3 5,8zM19,8c0,1.3 -0.84,2.4 -2,2.82V7h2V8z",
+  music: "M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55c-2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z",
+  trash: "M6,19c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2V7H6v12zM19,4h-3.5l-1,-1h-5l-1,1H5v2h14V4z",
 };
 const svg = (name, cls = "") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[name]}"/></svg>`;
 
@@ -60,8 +64,31 @@ function stackClass() {
 }
 const chartClass = () => (animating ? "chart anim" : "chart");
 
-function ring(pct, style = "") {
-  return `<div class="ring" style="--p:${Math.max(0, Math.min(100, pct))};${style}"></div>`;
+const IS_SAMSUNG = /SamsungBrowser/i.test(navigator.userAgent);
+document.documentElement.classList.toggle("samsung", IS_SAMSUNG);
+
+const clampPct = (pct) => Math.max(0, Math.min(100, pct));
+
+// Anillos y barras de progreso van en SVG con colores lisos: el modo oscuro de Samsung Internet
+// oscurece los degradados y los fondos de colores vivos, pero respeta los trazos y rellenos lisos.
+function ring(pct, style = "", id = "") {
+  const p = clampPct(pct);
+  return `<svg class="ring${p ? "" : " empty"}"${id ? ` id="${id}"` : ""} viewBox="0 0 100 100" style="--p:${p};${style}" aria-hidden="true">
+    <circle class="ring-track" cx="50" cy="50" r="44"/>
+    <circle class="ring-bar" cx="50" cy="50" r="44" pathLength="100" transform="rotate(-90 50 50)"/></svg>`;
+}
+
+function meter(pct, { thick = false, color = "", cls = "" } = {}) {
+  const p = clampPct(pct);
+  const rx = thick ? 6 : 5;
+  return `<svg class="meter${thick ? " thick" : ""}${cls ? ` ${cls}` : ""}" aria-hidden="true"${color ? ` style="--meter:${color}"` : ""}>
+    <rect class="meter-track" width="100%" height="100%" rx="${rx}"/>${p ? `<rect class="meter-fill" width="${p}%" height="100%" rx="${rx}"/>` : ""}</svg>`;
+}
+
+/** "7,47" → "7" claro + ",47" en ámbar (colores lisos: se ven igual con el modo oscuro de Samsung). */
+function heroNumber(v) {
+  const [int, dec] = L.fmtGrade(v).split(",");
+  return `${int}${dec ? `<span class="dec">,${dec}</span>` : ""}`;
 }
 
 function cardHead(icon, title, trailing = "") {
@@ -95,6 +122,8 @@ const state = {
   tasks: [],
   grades: [],
   focus: {}, // minutos de foco por día: { "2026-10-26": 50 }
+  schedule: [], // horario de clases: { id, day (1 = lunes … 7), start "08:30", end "09:25", subject, room }
+  scheduleDay: null, // día que se está editando en el horario
   showDone: false,
   selectedSubject: null,
   selectedDay: null,
@@ -110,35 +139,38 @@ function loadData() {
   state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
   state.grades = Array.isArray(data.grades) ? data.grades : [];
   state.focus = isPlainObject(data.focus) ? data.focus : {};
+  state.schedule = Array.isArray(data.schedule) ? data.schedule : [];
 }
 
 const isPlainObject = (v) => v != null && typeof v === "object" && !Array.isArray(v);
-const DATA_KEYS = ["tasks", "grades", "focus"];
+const DATA_KEYS = ["tasks", "grades", "focus", "schedule"];
 
 let persistAsked = false;
 function saveData() {
   if (state.where === "cloud") {
     DATA_KEYS.forEach((k) => (cloud.dirty[k] = true));
     flushCloud();
+    checkAchievements();
     return;
   }
-  const ok = storage.set(DATA_KEY, { version: 1, tasks: state.tasks, grades: state.grades, focus: state.focus });
+  const ok = storage.set(DATA_KEY, { version: 1, tasks: state.tasks, grades: state.grades, focus: state.focus, schedule: state.schedule });
   if (!ok) toast("No se ha podido guardar en este navegador");
   // Pide al navegador que no borre los datos aunque falte espacio.
   if (!persistAsked && navigator.storage?.persist) {
     persistAsked = true;
     navigator.storage.persist().catch(() => {});
   }
+  checkAchievements();
 }
 
 // ---------------------------------------------------------------- Cuenta de Claude (solo claude.ai)
 
 const cloud = {
   docs: null,
-  dirty: { tasks: false, grades: false, focus: false },
-  written: { tasks: null, grades: null, focus: null },
+  dirty: { tasks: false, grades: false, focus: false, schedule: false },
+  written: { tasks: null, grades: null, focus: null, schedule: null },
   writing: false,
-  loaded: { tasks: false, grades: false, focus: false },
+  loaded: { tasks: false, grades: false, focus: false, schedule: false },
 };
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -151,7 +183,12 @@ async function initCloud() {
     if (!uid) throw new Error("sin cuenta");
     // Carpeta privada de quien abre la página: nadie más la ve, aunque se comparta el enlace.
     const base = `data/users/${uid}`;
-    cloud.docs = { tasks: db.doc(`${base}/tareas`), grades: db.doc(`${base}/notas`), focus: db.doc(`${base}/foco`) };
+    cloud.docs = {
+      tasks: db.doc(`${base}/tareas`),
+      grades: db.doc(`${base}/notas`),
+      focus: db.doc(`${base}/foco`),
+      schedule: db.doc(`${base}/horario`),
+    };
     for (const key of DATA_KEYS) {
       cloud.docs[key].onSnapshot(
         (snap) => {
@@ -229,12 +266,26 @@ function toast(text, action, onAction, ms = 4000) {
   btn.hidden = !action;
   btn.textContent = action || "";
   btn.onclick = () => {
-    bar.hidden = true;
+    hideToast();
     onAction?.();
   };
   bar.hidden = false;
   clearTimeout(snackTimer);
-  snackTimer = setTimeout(() => (bar.hidden = true), ms);
+  snackTimer = setTimeout(hideToast, ms);
+}
+
+const toastQueue = [];
+function hideToast() {
+  $("#snackbar").hidden = true;
+  setTimeout(nextToast, 250);
+}
+function nextToast() {
+  if ($("#snackbar").hidden && toastQueue.length) toast(...toastQueue.shift());
+}
+/** Un aviso que espera a que acabe el que se está viendo (para no tapar un "Deshacer"). */
+function toastAfter(...args) {
+  toastQueue.push(args);
+  setTimeout(nextToast, 30);
 }
 
 // ================================================================ Navegación
@@ -343,6 +394,111 @@ function updateBattery() {
     <p class="small mt16" style="margin-bottom:0">El porcentaje es el exacto del sistema. El tiempo lo calcula la app viendo cómo cambia la batería mientras la tienes abierta.</p>`;
 }
 
+// ================================================================ Estado: el tiempo (Open-Meteo: gratis y sin cuenta)
+
+// En claude.ai no se puede pedir nada a otras webs, así que ahí no sale esta tarjeta.
+const WEATHER_KEY = "mipanel:tiempo";
+const weather = { state: "idle", data: storage.get(WEATHER_KEY, null), error: "", tried: 0 };
+
+function locate() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(Object.assign(new Error("sin ubicación"), { code: 2 }));
+    navigator.geolocation.getCurrentPosition((p) => resolve(p.coords), reject, { maximumAge: 30 * 60000, timeout: 20000 });
+  });
+}
+
+/** Pide el tiempo. Con `relocate` vuelve a mirar dónde estás; si no, usa el sitio de la última vez. */
+async function loadWeather({ relocate = false } = {}) {
+  if (weather.state === "loading") return;
+  weather.state = "loading";
+  weather.tried = Date.now();
+  updateWeather();
+  try {
+    let lat = weather.data?.lat;
+    let lon = weather.data?.lon;
+    if (relocate || lat == null) {
+      const c = await locate();
+      // Redondeado a unos 1 km: basta para el tiempo y no manda la ubicación exacta.
+      lat = Math.round(c.latitude * 100) / 100;
+      lon = Math.round(c.longitude * 100) / 100;
+    }
+    const q = new URLSearchParams({
+      latitude: lat,
+      longitude: lon,
+      timezone: "auto",
+      forecast_days: "2",
+      current: "temperature_2m,apparent_temperature,weather_code,is_day",
+      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+    });
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${q}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { current: cur, daily: d } = await res.json();
+    if (cur?.temperature_2m == null || !d?.temperature_2m_max) throw new Error("respuesta rara");
+    const day = (i) => ({ code: d.weather_code?.[i], max: d.temperature_2m_max[i], min: d.temperature_2m_min?.[i], rain: d.precipitation_probability_max?.[i] });
+    weather.data = {
+      lat,
+      lon,
+      at: Date.now(),
+      temp: cur.temperature_2m,
+      feels: cur.apparent_temperature,
+      code: cur.weather_code,
+      isDay: cur.is_day !== 0,
+      today: day(0),
+      tomorrow: d.temperature_2m_max.length > 1 ? day(1) : null,
+    };
+    storage.set(WEATHER_KEY, weather.data);
+    weather.error = "";
+  } catch (e) {
+    weather.error = e?.code === 1 ? "denied" : e?.code === 2 || e?.code === 3 ? "gps" : navigator.onLine === false ? "offline" : "fail";
+    if (weather.data) toast(weather.error === "denied" ? "Sin permiso de ubicación: se queda el tiempo de antes" : "No se ha podido actualizar el tiempo");
+  }
+  weather.state = "idle";
+  updateWeather();
+}
+
+function updateWeather() {
+  const box = $("#weather-body");
+  if (!box) return;
+  const w = weather.data;
+  if (!w) {
+    if (weather.state === "loading") {
+      box.innerHTML = `<p class="hint">Buscando el tiempo de tu zona…</p>`;
+      return;
+    }
+    const why = {
+      denied: "No hay permiso para ver tu ubicación. Actívalo en los ajustes del navegador (Sitios → Ubicación) y vuelve a probar.",
+      gps: "No se ha podido saber dónde estás: activa la ubicación del móvil y vuelve a probar.",
+      offline: "No hay internet ahora mismo.",
+      fail: "No se ha podido cargar el tiempo. Prueba otra vez en un rato.",
+    }[weather.error];
+    box.innerHTML = `<p class="hint">${why || "Mira qué tiempo hace donde estás y si va a llover hoy o mañana."}</p>
+      <button class="btn block mt12" data-action="weather">${svg("sun")}${weather.error ? "Probar otra vez" : "Ver el tiempo de aquí"}</button>
+      ${weather.error ? "" : `<p class="small mt8">Te pedirá la ubicación. Solo se usa para saber el tiempo de tu zona.</p>`}`;
+    return;
+  }
+  const now = L.weatherInfo(w.code, w.isDay);
+  const deg = (v) => (v == null ? "—" : `${Math.round(v)}°`);
+  const tmr = w.tomorrow && L.weatherInfo(w.tomorrow.code);
+  box.innerHTML = `
+    <div class="weather">
+      <span class="weather-icon" aria-hidden="true">${now.icon}</span>
+      <div class="grow">
+        <div class="weather-temp num">${Math.round(w.temp)}<small>°</small></div>
+        <div class="strong">${now.label}</div>
+        <div class="small">Sensación ${deg(w.feels)} · Máx ${deg(w.today.max)} · Mín ${deg(w.today.min)}</div>
+      </div>
+    </div>
+    <div class="mini-stats">
+      <div><b class="num">${w.today.rain == null ? "—" : `${w.today.rain} %`}</b><span>de lluvia hoy</span></div>
+      ${tmr ? `<div><b class="num">${tmr.icon} ${deg(w.tomorrow.max)} / ${deg(w.tomorrow.min)}</b><span>mañana${w.tomorrow.rain ? ` · lluvia ${w.tomorrow.rain} %` : ""}</span></div>` : ""}
+    </div>
+    <div class="row mt12"><span class="small grow">${weather.state === "loading" ? "Actualizando…" : `Actualizado a las ${L.fmtTime(w.at)}`}</span>
+      <button type="button" class="btn text slim" data-action="weather-refresh" ${weather.state === "loading" ? "disabled" : ""}>Actualizar</button></div>`;
+  // Si es de hace más de media hora, se actualiza solo (con el sitio de la última vez: sin pedir la ubicación).
+  const stale = Date.now() - w.at > 30 * 60000 && Date.now() - weather.tried > 10 * 60000;
+  if (weather.state !== "loading" && stale && navigator.onLine !== false) loadWeather();
+}
+
 // ================================================================ Estado: cascos (Web Bluetooth)
 
 async function connectHeadphones() {
@@ -400,7 +556,7 @@ function updateBt() {
   let html = "";
   if (bt.state === "ok") {
     html = `<div class="row">${svg("headphones")}<div class="grow"><div class="row"><span class="grow strong">${esc(bt.name)}</span>
-      <span class="strong">${bt.level} %</span></div><div class="meter mt8"><i style="width:${bt.level}%;background:${batteryColor(bt.level)}"></i></div></div></div>`;
+      <span class="strong">${bt.level} %</span></div>${meter(bt.level, { color: batteryColor(bt.level), cls: "mt8" })}</div></div>`;
   } else {
     html = `<p class="hint">Los navegadores no pueden ver la batería de los cascos normales. Algunos modelos sí la comparten por Bluetooth: puedes probar con los tuyos.</p>
       ${bt.message ? `<p class="mt12 ${bt.state === "error" ? "" : "strong"}">${esc(bt.message)}</p>` : ""}
@@ -606,7 +762,7 @@ function updateSpeed() {
   const mbps = (v) => (v == null ? "—" : L.fmtDecimal(v, v >= 100 ? 0 : 1));
   if (s.state === "running") {
     box.innerHTML = `<div class="row"><span class="grow">${s.phase}</span>${s.live != null ? `<span class="strong num">${mbps(s.live)} Mbps</span>` : ""}</div>
-      <div class="meter mt8"><i style="width:${Math.round(s.progress * 100)}%"></i></div>
+      ${meter(Math.round(s.progress * 100), { cls: "mt8" })}
       <button class="btn outline block mt12" data-action="speed-cancel">Cancelar</button>`;
   } else if (s.state === "done") {
     const [title, text] = verdict(s);
@@ -704,7 +860,6 @@ window.addEventListener("appinstalled", () => {
 });
 // Samsung Internet empaqueta la app en un formato antiguo y Google Play Protect lo bloquea
 // ("se desarrolló para una versión anterior de Android"); Chrome la instala bien.
-const IS_SAMSUNG = /SamsungBrowser/i.test(navigator.userAgent);
 
 /** Enlace de Android que abre una dirección directamente en Chrome (y si no está, en el navegador). */
 function chromeIntent(url) {
@@ -767,6 +922,7 @@ function renderStatus() {
     ${installBanner()}
     <div class="${stackClass()}">
       <section class="card">${cardHead("battery", "Batería")}<div id="battery-body"></div></section>
+      ${ARTIFACT ? "" : `<section class="card">${cardHead("sun", "El tiempo")}<div id="weather-body"></div></section>`}
       <section class="card">${cardHead("headphones", "Cascos")}<div id="bt-body"></div></section>
       <section class="card">${cardHead("wifi", "Conexión")}<div id="net-body"></div>
         <hr class="divider">
@@ -776,6 +932,7 @@ function renderStatus() {
       <section class="card">${cardHead("phone", "Este móvil")}<div id="device-body"></div></section>
     </div>`;
   updateBattery();
+  updateWeather();
   updateBt();
   updateNetwork();
   updateSpeed();
@@ -797,16 +954,22 @@ function renderTasks() {
   const fab = `<button class="fab" data-action="new-task" aria-label="Nueva tarea">${svg("add")}Nueva tarea</button>`;
 
   if (!pending.length && !done.length) {
-    $("#view").innerHTML = `${header}<div class="empty"><div class="glow-icon">${svg("book")}</div><h2>No tienes tareas</h2>
+    const classes = scheduleCard(day);
+    $("#view").innerHTML = `${header}${classes ? `<div class="${stackClass()}">${classes}</div>` : ""}<div class="empty"><div class="glow-icon">${svg("book")}</div><h2>No tienes tareas</h2>
       <p class="hint">Pulsa "Nueva tarea" y apunta lo que tengas que estudiar, la fecha del examen y cuántas páginas son.</p></div>${fab}`;
     return;
   }
 
   let html = header + `<div class="${stackClass()}">`;
+  html += scheduleCard(day);
   html += planCard(pending, done, day);
   html += weekCard(day);
   html += pending.map((t) => taskCard(t, day)).join("");
   html += examsCard(day);
+  if (!state.schedule.length) {
+    html += `<button type="button" class="invite" data-action="schedule">${svg("school")}<span class="grow"><b>Añade tu horario de clases</b>
+      <span class="small">Y aquí verás qué clase toca ahora y cuál viene después.</span></span>${svg("add")}</button>`;
+  }
   if (done.length) {
     html += `<button class="done-head" data-action="toggle-done" aria-expanded="${state.showDone}">
       <span class="grow" style="text-align:left">TERMINADAS · ${done.length}</span>${svg(state.showDone ? "up" : "down")}</button>`;
@@ -875,7 +1038,7 @@ function examsCard(day) {
       <div class="grow">
         <div class="strong">${esc(t.title)}</div>
         <div class="small">${capitalize(L.relativeDay(days))}${L.hasPages(t) ? ` · ${pct} % estudiado` : ""}</div>
-        ${L.hasPages(t) ? `<div class="meter mt8"><i style="width:${pct}%"></i></div>` : ""}
+        ${L.hasPages(t) ? meter(pct, { cls: "mt8" }) : ""}
       </div>
     </div>`;
   });
@@ -960,7 +1123,7 @@ function taskCard(t, day) {
     }
     body = `
       <div class="numbers"><span><b>${t.pagesDone}</b> de ${t.totalPages} págs</span><span>Quedan ${L.remainingPages(t)}</span></div>
-      <div class="meter thick"><i style="width:${pct}%"></i></div>
+      ${meter(pct, { thick: true })}
       ${plan}
       <div class="quick">
         <button type="button" data-action="add-pages" data-id="${t.id}" data-n="1">+1</button>
@@ -1212,6 +1375,169 @@ function confetti(canvas) {
   requestAnimationFrame(frame);
 }
 
+// ================================================================ Horario de clases
+
+const nowMinute = () => {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+};
+const plusMinutes = (hhmm, n) => {
+  const t = Math.min(23 * 60 + 59, L.toMinutes(hhmm) + n);
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+};
+
+/** "Hoy en clase": la clase de ahora (con lo que le queda) y la siguiente. */
+function scheduleCard(day) {
+  if (!state.schedule.length) return "";
+  const weekday = L.isoWeekday(day);
+  const minute = nowMinute();
+  const { list, current, next } = L.classStatus(state.schedule, weekday, minute);
+  const after = L.nextSchoolDay(state.schedule, weekday);
+  const later = after
+    ? `${after.offset === 1 ? "Mañana" : `El ${L.WEEKDAYS[after.day - 1]}`} empiezas a las <b>${L.fmtHour(after.first.start)}</b> con <b>${esc(after.first.subject)}</b>.`
+    : "";
+  let body;
+  if (!list.length) body = `<p class="hint">Hoy no tienes clase. ${later}</p>`;
+  else if (!current && !next) body = `<p class="hint">Ya has terminado las clases de hoy. ${later}</p>`;
+  else body = `<div class="class-list">${list.map((c) => classRow(c, minute, c === current, c === next)).join("")}</div>`;
+  const edit = `<button type="button" class="btn text slim" data-action="schedule">Editar</button>`;
+  return `<section class="card" id="schedule-card">${cardHead("school", "Hoy en clase", edit)}${body}</section>`;
+}
+
+function classRow(c, minute, isNow, isNext) {
+  const start = L.toMinutes(c.start);
+  const end = L.toMinutes(c.end);
+  const badge = isNow
+    ? `<span class="pill" style="--pill:var(--accent)">Ahora</span>`
+    : isNext ? `<span class="pill" style="--pill:var(--muted)">en ${fmtMinutes(start - minute)}</span>` : "";
+  const live = isNow ? `${meter(((minute - start) / (end - start)) * 100, { cls: "mt8" })}<span class="small">Quedan ${fmtMinutes(end - minute)}</span>` : "";
+  return `<div class="class-row${isNow ? " now" : ""}${minute >= end ? " past" : ""}">
+      <div class="class-time"><b>${L.fmtHour(c.start)}</b><span>${L.fmtHour(c.end)}</span></div>
+      <div class="grow"><div class="row"><span class="strong grow">${esc(c.subject)}</span>${badge}</div>
+        ${c.room ? `<span class="small">${esc(c.room)}</span>` : ""}${live}</div>
+    </div>`;
+}
+
+/** Hoja para poner el horario: un día cada vez, con sus clases. Los cambios se guardan al momento. */
+function openScheduleEditor() {
+  const todayWd = L.isoWeekday(today());
+  state.scheduleDay ||= todayWd <= 5 ? todayWd : 1;
+  const root = overlay(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sch-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="sch-title">Horario de clases</h2>
+      </div>
+      <div class="sheet-body" id="sch-body"></div>
+    </div>`);
+  const draw = () => {
+    const day = state.scheduleDay;
+    const list = L.classesOn(state.schedule, day);
+    $("#sch-body", root).innerHTML = `
+      <div class="segmented days">${L.WEEKDAY_LETTERS.map((letter, i) => {
+        const has = state.schedule.some((c) => c.day === i + 1);
+        return `<button type="button" data-sch="day" data-day="${i + 1}" aria-pressed="${i + 1 === day}" aria-label="${L.WEEKDAYS[i]}"${has ? ' class="has"' : ""}>${letter}</button>`;
+      }).join("")}</div>
+      <p class="eyebrow">${capitalize(L.WEEKDAYS[day - 1])} · ${list.length ? `${list.length} ${list.length === 1 ? "clase" : "clases"}` : "sin clases"}</p>
+      <div class="class-edit-list">${list.map((c) => `
+        <div class="class-edit">
+          <button type="button" class="class-edit-main" data-sch="edit" data-id="${c.id}">
+            <span class="class-time"><b>${L.fmtHour(c.start)}</b><span>${L.fmtHour(c.end)}</span></span>
+            <span class="grow"><span class="strong">${esc(c.subject)}</span>${c.room ? `<span class="small">${esc(c.room)}</span>` : ""}</span>
+          </button>
+          <button type="button" class="icon-btn ghost" data-sch="del" data-id="${c.id}" aria-label="Borrar ${esc(c.subject)}">${svg("trash")}</button>
+        </div>`).join("") || `<p class="hint">Añade la primera clase del ${L.WEEKDAYS[day - 1]}.</p>`}</div>
+      <button type="button" class="btn block mt12" data-sch="add">${svg("add")}Añadir clase</button>
+      <p class="small mt12">Las horas de la siguiente clase se rellenan solas a continuación de la anterior.</p>`;
+  };
+  $("#sch-body", root).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sch]");
+    if (!b) return;
+    const cls = state.schedule.find((c) => c.id === b.dataset.id);
+    if (b.dataset.sch === "day") {
+      state.scheduleDay = Number(b.dataset.day);
+      draw();
+    } else if (b.dataset.sch === "add") {
+      openClassEditor(null, state.scheduleDay, draw);
+    } else if (b.dataset.sch === "edit") {
+      openClassEditor(cls, cls.day, draw);
+    } else if (b.dataset.sch === "del") {
+      state.schedule = state.schedule.filter((c) => c.id !== cls.id);
+      saveData();
+      draw();
+      render();
+      toast(`Clase borrada (${cls.subject})`, "Deshacer", () => {
+        state.schedule = [...state.schedule, cls];
+        saveData();
+        if (root.isConnected) draw();
+        render();
+      }, 6000);
+    }
+  });
+  draw();
+}
+
+function openClassEditor(cls, day, onSaved) {
+  const list = L.classesOn(state.schedule, day).filter((c) => c !== cls);
+  const last = list[list.length - 1];
+  // Sin clases ese día: la hora de empezar de otro día (casi siempre es la misma).
+  const firstElsewhere = [...state.schedule].sort((a, b) => L.toMinutes(a.start) - L.toMinutes(b.start))[0];
+  const start = cls?.start || last?.end || firstElsewhere?.start || "08:30";
+  const length = last ? L.toMinutes(last.end) - L.toMinutes(last.start) : 55;
+  const end = cls?.end || plusMinutes(start, length);
+  const known = [...new Set([...state.schedule.map((c) => c.subject), ...L.bySubject(state.grades).map((s) => s.name)])];
+  const root = overlay(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cl-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="cl-title">${cls ? "Editar clase" : `Clase del ${L.WEEKDAYS[day - 1]}`}</h2>
+        <button class="btn" type="submit" form="class-form" id="save">Guardar</button>
+      </div>
+      <form id="class-form" novalidate>
+        <label class="field"><span>Asignatura</span>
+          <input name="subject" maxlength="40" placeholder="Ej.: Matemáticas" value="${esc(cls?.subject || "")}" autocomplete="off"></label>
+        <div class="chips" id="suggestions"></div>
+        <div class="two">
+          <label class="field"><span>Empieza</span><input name="start" type="time" value="${start}"></label>
+          <label class="field"><span>Termina</span><input name="end" type="time" value="${end}"></label>
+        </div>
+        <small class="error" id="time-err"></small>
+        <label class="field"><span>Aula (opcional)</span>
+          <input name="room" maxlength="30" placeholder="Ej.: Aula 12, laboratorio…" value="${esc(cls?.room || "")}" autocomplete="off"></label>
+      </form>
+    </div>`);
+  const form = $("#class-form", root);
+  const f = form.elements;
+  const refresh = () => {
+    const bad = f.start.value && f.end.value && L.toMinutes(f.end.value) <= L.toMinutes(f.start.value);
+    $("#time-err", root).textContent = bad ? "Tiene que terminar después de empezar" : "";
+    $("#save", root).disabled = !f.subject.value.trim() || !f.start.value || !f.end.value || bad;
+    const key = L.subjectKey(f.subject.value);
+    const options = known.filter((n) => L.subjectKey(n) !== key && (!key || L.subjectKey(n).includes(key)));
+    $("#suggestions", root).innerHTML = options.slice(0, 8).map((n) => `<button type="button" data-name="${esc(n)}">${esc(n)}</button>`).join("");
+  };
+  $("#suggestions", root).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-name]");
+    if (!b) return;
+    f.subject.value = b.dataset.name;
+    refresh();
+  });
+  for (const el of [f.subject, f.start, f.end]) el.addEventListener("input", refresh);
+  refresh();
+  if (!cls) f.subject.focus();
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if ($("#save", root).disabled) return;
+    const values = { day, start: f.start.value, end: f.end.value, subject: L.withAccents(L.cleanSubjectName(f.subject.value)), room: f.room.value.trim() };
+    closeOverlay(root);
+    if (cls) state.schedule = state.schedule.map((c) => (c.id === cls.id ? { ...c, ...values } : c));
+    else state.schedule = [...state.schedule, { id: uid(), ...values }];
+    saveData();
+    onSaved?.();
+    render();
+  });
+}
+
 // ================================================================ Pantalla Notas
 
 function renderGrades() {
@@ -1233,7 +1559,7 @@ function renderGrades() {
   let html = `${header}<div class="${stackClass()}">
     <section class="card">
       <p class="eyebrow">Media general</p>
-      <div class="avg mt8"><span class="hero">${L.fmtGrade(overall)}</span>
+      <div class="avg mt8"><span class="hero">${heroNumber(overall)}</span>
         <span class="pill" style="--pill:${gradeColor(overall)};margin-bottom:10px">${L.gradeLabel(overall)}</span></div>
       <div class="stats2">
         <div class="stat"><span>Asignaturas</span><b>${subjects.length}</b><em>${passed === subjects.length ? "todas aprobadas" : `${passed} aprobadas · ${subjects.length - passed} suspensas`}</em></div>
@@ -1345,8 +1671,7 @@ function drawChart(subjects) {
 
   let out = `<svg viewBox="0 0 ${width} ${height}" height="${height}" role="img" aria-label="Gráfica de medias. ${esc(
     subjects.map((s) => `${s.name}: media ${L.fmtGrade(s.average)}`).join("; ")
-  )}"><defs><linearGradient id="barGrad" x1="0" x2="1" y1="0" y2="0">
-    <stop offset="0" stop-color="var(--accent-2)"/><stop offset="1" stop-color="var(--accent)"/></linearGradient></defs>`;
+  )}">`;
   subjects.forEach((s, i) => {
     if (s.key === state.selectedSubject) out += `<rect class="sel" x="0" y="${i * rowH}" width="${width}" height="${rowH}" rx="12"/>`;
   });
@@ -1362,7 +1687,7 @@ function drawChart(subjects) {
     const top = cy - 9;
     const bottom = cy + 9;
     // Base recta en el 0 y extremo redondeado.
-    out += `<path class="bar" fill="url(#barGrad)" d="M${x0},${top} H${end - r} Q${end},${top} ${end},${top + r} V${bottom - r} Q${end},${bottom} ${end - r},${bottom} H${x0} Z"/>`;
+    out += `<path class="bar" d="M${x0},${top} H${end - r} Q${end},${top} ${end},${top + r} V${bottom - r} Q${end},${bottom} ${end - r},${bottom} H${x0} Z"/>`;
     out += `<text x="0" y="${cy + 5}">${esc(fit(s.name))}</text>`;
     out += `<text class="value" x="${end + 7}" y="${cy + 5}">${L.fmtGrade(s.average)}</text>`;
     out += `<rect class="hit" data-subject="${esc(s.key)}" x="0" y="${i * rowH}" width="${width}" height="${rowH}"><title>${esc(s.name)}: ${L.fmtGrade(s.average)}</title></rect>`;
@@ -1470,10 +1795,17 @@ const PRESETS = [
 ];
 const TIMER_KEY = "mipanel:temporizador";
 const timer = Object.assign(
-  { preset: "25", phase: "work", running: false, endsAt: 0, remaining: 25 * 60000, taskId: null },
+  { preset: "25", phase: "work", running: false, endsAt: 0, remaining: 25 * 60000, taskId: null, sound: "" },
   storage.get(TIMER_KEY, {})
 );
 if (!PRESETS.some((p) => p.id === timer.preset)) timer.preset = "25";
+const SOUNDS = [
+  { id: "", label: "Nada" },
+  { id: "rain", label: "Lluvia" },
+  { id: "waves", label: "Olas" },
+  { id: "noise", label: "Ruido" },
+];
+if (!SOUNDS.some((x) => x.id === timer.sound)) timer.sound = "";
 
 const preset = () => PRESETS.find((p) => p.id === timer.preset);
 const phaseLength = (phase) => (phase === "work" ? preset().work : preset().rest) * 60000;
@@ -1526,6 +1858,130 @@ function chime() {
   });
 }
 
+// ---------------------------------------------------------------- Sonido de fondo (generado, sin archivos)
+
+let ambient = null; // { out, nodes, token }
+
+/** Ruido de 6 s que se repite sin cortes: blanco (lluvia) o marrón (más grave y suave). */
+function noiseSource(kind) {
+  const len = audioCtx.sampleRate * 6;
+  const buffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d = buffer.getChannelData(0);
+  if (kind === "white") {
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  } else {
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      d[i] = last * 3.5;
+    }
+    // Que el final empalme con el principio (si no, se oye un "clic" cada 6 s).
+    const jump = d[len - 1] - d[0];
+    for (let i = 0; i < len; i++) d[i] -= jump * (i / len);
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  src.loop = true;
+  return src;
+}
+
+function startAmbient(previewMs = 0) {
+  stopAmbient();
+  if (!timer.sound) return;
+  ensureAudio();
+  if (!audioCtx) return;
+  const ctx = audioCtx;
+  const t = ctx.currentTime;
+  const out = ctx.createGain();
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.exponentialRampToValueAtTime(1, t + 1.2);
+  out.connect(ctx.destination);
+  const nodes = [];
+  const gain = (v) => {
+    const g = ctx.createGain();
+    g.gain.value = v;
+    return g;
+  };
+  const filter = (type, freq) => {
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    return f;
+  };
+  if (timer.sound === "rain") {
+    const hiss = noiseSource("white");
+    hiss.connect(filter("highpass", 400)).connect(filter("lowpass", 5000)).connect(gain(0.09)).connect(out);
+    const body = noiseSource("brown");
+    body.connect(gain(0.25)).connect(out);
+    nodes.push(hiss, body);
+  } else if (timer.sound === "waves") {
+    // Ruido grave que sube y baja despacio, como el mar (una ola cada ~9 s).
+    const sea = noiseSource("brown");
+    const swell = gain(0.35);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.11;
+    lfo.connect(gain(0.28)).connect(swell.gain);
+    sea.connect(filter("lowpass", 1100)).connect(swell).connect(out);
+    nodes.push(sea, lfo);
+  } else {
+    const soft = noiseSource("brown");
+    soft.connect(gain(0.4)).connect(out);
+    nodes.push(soft);
+  }
+  nodes.forEach((n) => n.start());
+  const token = {};
+  ambient = { out, nodes, token, preview: previewMs > 0 };
+  if (previewMs) setTimeout(() => ambient?.token === token && stopAmbient(), previewMs);
+}
+
+function stopAmbient() {
+  if (!ambient || !audioCtx) return;
+  const { out, nodes } = ambient;
+  ambient = null;
+  const t = audioCtx.currentTime;
+  out.gain.cancelScheduledValues(t);
+  out.gain.setValueAtTime(Math.max(0.0001, out.gain.value), t);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+  setTimeout(() => {
+    nodes.forEach((n) => {
+      try {
+        n.stop();
+      } catch {
+        /* ya parado */
+      }
+    });
+    out.disconnect();
+  }, 600);
+}
+
+// ---------------------------------------------------------------- Pantalla encendida mientras cuenta
+
+let wakeLock = null;
+async function keepScreenOn(on) {
+  try {
+    if (on && !wakeLock && navigator.wakeLock && !document.hidden) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => (wakeLock = null));
+    } else if (!on && wakeLock) {
+      const lock = wakeLock;
+      wakeLock = null;
+      await lock.release();
+    }
+  } catch {
+    wakeLock = null;
+  }
+}
+
+/** Sonido y pantalla según el temporizador: solo mientras cuenta (el sonido, solo al concentrarte). */
+function syncFocusExtras() {
+  keepScreenOn(timer.running);
+  if (timer.running && timer.phase === "work" && timer.sound) {
+    if (!ambient || ambient.preview) startAmbient();
+  } else {
+    stopAmbient();
+  }
+}
+
 function addFocusMinutes(minutes) {
   if (minutes < 1) return;
   const day = today();
@@ -1540,6 +1996,7 @@ function startTimer() {
   timer.running = true;
   saveTimer();
   ensureTicker();
+  syncFocusExtras();
   renderIfFocus();
 }
 
@@ -1548,6 +2005,7 @@ function pauseTimer() {
   timer.remaining = timeLeft();
   timer.running = false;
   saveTimer();
+  syncFocusExtras();
   renderIfFocus();
 }
 
@@ -1564,6 +2022,7 @@ function resetTimer() {
   timer.running = false;
   timer.remaining = phaseLength("work");
   saveTimer();
+  syncFocusExtras();
   renderIfFocus();
 }
 
@@ -1578,12 +2037,14 @@ function skipPhase() {
   }
   timer.running = false;
   saveTimer();
+  syncFocusExtras();
   renderIfFocus();
 }
 
 function completePhase() {
   const finished = timer.phase;
   timer.running = false;
+  syncFocusExtras();
   chime();
   navigator.vibrate?.([200, 120, 200, 120, 400]);
   if (finished === "work") {
@@ -1612,7 +2073,9 @@ function updateFocusUI() {
   const left = timeLeft();
   time.textContent = fmtClock(left);
   const pct = 100 - (left / phaseLength(timer.phase)) * 100;
-  $("#focus-ring")?.style.setProperty("--p", pct.toFixed(2));
+  const focusRing = $("#focus-ring");
+  focusRing?.style.setProperty("--p", pct.toFixed(2));
+  focusRing?.classList.toggle("empty", pct <= 0);
 }
 
 function renderFocus() {
@@ -1632,7 +2095,7 @@ function renderFocus() {
       <section class="card focus-card${isWork ? "" : " resting"}">
         <div class="segmented presets">${PRESETS.map((x) => `<button type="button" data-action="preset" data-preset="${x.id}" aria-pressed="${x.id === timer.preset}" ${timer.running ? "disabled" : ""}>${x.label}</button>`).join("")}</div>
         <div class="ring-wrap xl${timer.running ? " live" : ""}">
-          <div class="ring" id="focus-ring" style="--p:${pct.toFixed(2)}${isWork ? "" : ";--c1:var(--cyan);--c2:var(--blue)"}"></div>
+          ${ring(Number(pct.toFixed(2)), isWork ? "" : "--c1:var(--cyan);--c2:var(--blue)", "focus-ring")}
           <div class="center">
             <span class="eyebrow">${isWork ? "Concentración" : "Descanso"}</span>
             <b class="focus-time" id="focus-time">${fmtClock(left)}</b>
@@ -1644,6 +2107,8 @@ function renderFocus() {
             <option value="">Sin elegir tarea</option>
             ${studyTasks.map((t) => `<option value="${t.id}" ${t.id === timer.taskId ? "selected" : ""}>${esc(t.title)}</option>`).join("")}
           </select></label>
+        <div class="field focus-sound"><span>${svg("music")}Sonido de fondo</span>
+          <div class="segmented sounds">${SOUNDS.map((x) => `<button type="button" data-action="sound" data-sound="${x.id}" aria-pressed="${x.id === timer.sound}">${x.label}</button>`).join("")}</div></div>
         <div class="focus-controls">
           <button class="icon-btn big" data-action="focus-reset" aria-label="Reiniciar">${svg("reset")}</button>
           ${timer.running
@@ -1651,7 +2116,7 @@ function renderFocus() {
             : `<button class="btn play" data-action="focus-start">${svg("play")}${left < phaseLength(timer.phase) ? "Seguir" : isWork ? "Empezar" : "Descansar"}</button>`}
           <button class="icon-btn big" data-action="focus-skip" aria-label="${isWork ? "Pasar al descanso" : "Saltar descanso"}">${svg("skip")}</button>
         </div>
-        <p class="small" style="text-align:center;margin:14px 0 0">Si sales de la app el tiempo sigue contando. Al terminar suena y vibra si la tienes abierta.</p>
+        <p class="small" style="text-align:center;margin:14px 0 0">Si sales de la app el tiempo sigue contando${"wakeLock" in navigator ? ". Mientras cuenta, la pantalla no se apaga" : ""}. Al terminar suena y vibra si la tienes abierta.</p>
       </section>
       <section class="card">
         ${cardHead("timer", "Tiempo de estudio", streak ? `<span class="pill" style="--pill:var(--warning)">${svg("flame")}${streak} ${streak === 1 ? "día" : "días"}</span>` : "")}
@@ -1665,6 +2130,7 @@ function renderFocus() {
           return sel ? `<b>${L.fmtDateShort(sel.date)}</b>: ${fmtMinutes(sel.minutes)} de foco` : "Minutos de foco de los últimos 7 días.";
         })()}</p>
       </section>
+      ${achievementsCard()}
     </div>`;
   const box = $("#focus-chart");
   box.innerHTML = C.dayColumns(days.map((d) => ({ date: d.date, value: d.minutes })), {
@@ -1674,6 +2140,40 @@ function renderFocus() {
     hitAttr: "data-focusday",
   });
   ensureTicker();
+}
+
+// ---------------------------------------------------------------- Logros
+
+const ACH_KEY = "mipanel:logros";
+let selectedBadge = null;
+
+function achievementsCard() {
+  const list = L.achievements(state.tasks, state.grades, state.focus);
+  const got = list.filter((a) => a.done).length;
+  const sel = list.find((a) => a.id === selectedBadge);
+  return `<section class="card" id="achievements">
+    ${cardHead("trophy", "Logros", `<span class="pill" style="--pill:var(--warning)">${got} de ${list.length}</span>`)}
+    <div class="badges">${list.map((a) => `
+      <button type="button" class="badge${a.done ? " got" : ""}" data-action="badge" data-id="${a.id}" aria-pressed="${a.id === selectedBadge}">
+        <span class="badge-emoji" aria-hidden="true">${a.icon}</span>
+        <b>${esc(a.title)}</b>
+        <span>${a.done ? "Conseguido" : a.goal > 1 ? `${a.cur} / ${a.goal}` : "Pendiente"}</span>
+        ${!a.done && a.goal > 1 ? meter((a.cur / a.goal) * 100, { color: "var(--warning)" }) : ""}
+      </button>`).join("")}</div>
+    <p class="chart-detail">${sel
+      ? `${sel.icon} <b>${esc(sel.title)}</b>: ${esc(sel.desc)}.${sel.done ? " ¡Conseguido!" : sel.goal > 1 ? ` Llevas ${sel.cur} de ${sel.goal}.` : ""}`
+      : "Se consiguen estudiando, con el foco y con tus notas. Toca uno para ver cómo."}</p>
+  </section>`;
+}
+
+/** Avisa cuando se consigue un logro nuevo (la primera vez solo apunta los que ya tenías). */
+function checkAchievements() {
+  const done = L.achievements(state.tasks, state.grades, state.focus).filter((a) => a.done);
+  const seen = storage.get(ACH_KEY, null);
+  storage.set(ACH_KEY, [...new Set([...(Array.isArray(seen) ? seen : []), ...done.map((a) => a.id)])]);
+  if (!Array.isArray(seen)) return;
+  const fresh = done.find((a) => !seen.includes(a.id));
+  if (fresh) toastAfter(`🏆 ¡Logro conseguido! ${fresh.icon} ${fresh.title}`, state.tab === "foco" ? null : "Ver", () => setTab("foco"), 6000);
 }
 
 /** Al acabar una sesión: anotar páginas de la tarea que estabas estudiando y empezar el descanso. */
@@ -1705,7 +2205,10 @@ function focusDoneDialog() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && timer.running) tick();
+  if (!document.hidden && timer.running) {
+    tick();
+    keepScreenOn(true); // el navegador la suelta al salir de la app
+  }
 });
 
 // ================================================================ Copia de seguridad
@@ -1715,8 +2218,8 @@ function openBackupDialog() {
     <div class="scrim"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bk-title">
       <h2 id="bk-title">Copia de seguridad</h2>
       <p style="margin-top:0">${ARTIFACT
-        ? "Tus tareas y notas ya se guardan en tu cuenta de Claude. Si quieres, guarda también una copia en un archivo: sirve para pasarlas a la app instalable (APK) o a la versión web."
-        : "Guarda tus tareas y notas en un archivo (en Descargas, Drive…). Si cambias de móvil o borras los datos de Chrome, las recuperas desde aquí. Sirve también para pasarlas a la app instalable (APK)."}</p>
+        ? "Tus tareas, notas y horario ya se guardan en tu cuenta de Claude. Si quieres, guarda también una copia en un archivo: sirve para pasarlas a la app instalable (APK) o a la versión web."
+        : "Guarda tus tareas, notas y horario en un archivo (en Descargas, Drive…). Si cambias de móvil o borras los datos de Chrome, las recuperas desde aquí. Sirve también para pasarlas a la app instalable (APK)."}</p>
       <button class="btn block" id="bk-export">Guardar copia</button>
       <button class="btn outline block mt8" id="bk-import">Recuperar una copia</button>
       <input type="file" id="bk-file" accept=".json,application/json" hidden>
@@ -1725,7 +2228,7 @@ function openBackupDialog() {
     </div></div>`);
   const msg = $("#bk-msg", root);
   $("#bk-export", root).addEventListener("click", async () => {
-    const data = { app: "MiPanel", version: 1, createdAt: Date.now(), tasks: state.tasks, grades: state.grades, focus: state.focus };
+    const data = { app: "MiPanel", version: 1, createdAt: Date.now(), tasks: state.tasks, grades: state.grades, focus: state.focus, schedule: state.schedule };
     if (ARTIFACT) {
       const downloads = await window.claude?.use?.("downloads");
       if (!downloads) {
@@ -1761,6 +2264,7 @@ function openBackupDialog() {
       };
       state.tasks = merge(state.tasks, data.tasks);
       state.grades = merge(state.grades, data.grades);
+      if (Array.isArray(data.schedule)) state.schedule = merge(state.schedule, data.schedule);
       if (isPlainObject(data.focus)) {
         const focus = { ...state.focus };
         for (const [day, min] of Object.entries(data.focus)) focus[day] = Math.max(focus[day] || 0, Number(min) || 0);
@@ -1940,6 +2444,12 @@ document.addEventListener("click", (e) => {
     case "bt":
       connectHeadphones();
       break;
+    case "weather":
+      loadWeather({ relocate: true });
+      break;
+    case "weather-refresh":
+      loadWeather({ relocate: true });
+      break;
     case "speed":
       runSpeedTest();
       break;
@@ -1986,6 +2496,18 @@ document.addEventListener("click", (e) => {
         render();
       }
       break;
+    case "sound":
+      timer.sound = el.dataset.sound;
+      saveTimer();
+      if (timer.running && timer.phase === "work") startAmbient();
+      else if (timer.sound) startAmbient(3000); // se escucha un momento para ver cómo suena
+      else stopAmbient();
+      render();
+      break;
+    case "badge":
+      selectedBadge = selectedBadge === id ? null : id;
+      $("#achievements").outerHTML = achievementsCard();
+      break;
     case "focus-start":
       startTimer();
       break;
@@ -2000,7 +2522,10 @@ document.addEventListener("click", (e) => {
       break;
     case "menu":
       if (openMenuEl) closeMenu();
-      else showMenu(el, [["Copia de seguridad", openBackupDialog]]);
+      else showMenu(el, [["Horario de clases", openScheduleEditor], ["Copia de seguridad", openBackupDialog]]);
+      break;
+    case "schedule":
+      openScheduleEditor();
       break;
     case "new-grade":
       openGradeEditor(null, el.dataset.subject || "");
@@ -2034,6 +2559,9 @@ setInterval(() => {
   if (today() !== lastDay) {
     lastDay = today();
     if (state.tab === "tareas") render();
+  } else if (state.tab === "tareas") {
+    const card = $("#schedule-card");
+    if (card) card.outerHTML = scheduleCard(today());
   }
 }, 60_000);
 
