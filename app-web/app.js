@@ -686,7 +686,10 @@ function updateDevice() {
 // ================================================================ Instalar como app
 
 let installPrompt = null;
-const APP_URL = "https://alldesignkarl.github.io/Parte-3-frutas/";
+// La app instalable se sirve desde la carpeta docs/ del repositorio. raw.githack.com la publica tal
+// cual sin configurar nada; GitHub Pages es la alternativa oficial si se activa en el repositorio.
+const APP_URL = "https://raw.githack.com/AlldesignKarl/Parte-3-frutas/ccr-967317e2-ixw499/docs/index.html";
+const PAGES_URL = "https://alldesignkarl.github.io/Parte-3-frutas/";
 const PAGES_SETTINGS = "https://github.com/AlldesignKarl/Parte-3-frutas/settings/pages";
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
@@ -707,9 +710,9 @@ function installBanner() {
     return `<div class="install install-big"><div class="grow">
         <p><b>Descárgala como app</b><br>Con su icono, a pantalla completa y funciona sin internet.</p>
         <a class="btn mt12" href="${APP_URL}" target="_blank" rel="noopener">${svg("add")}Abrir para instalar</a>
-        <p class="small mt12">Si sale «404 · Page not found», falta activar la web en GitHub (solo una vez):
-          <a href="${PAGES_SETTINGS}" target="_blank" rel="noopener">abrir ajustes</a> → <b>Deploy from a branch</b> → rama
-          <b>ccr-967317e2-ixw499</b> y carpeta <b>/docs</b> → <b>Save</b>. Espera un par de minutos y vuelve a tocar el botón.</p>
+        <p class="small mt12">Se abre la app en Chrome: toca <b>Instalar</b> (o ⋮ → <b>Instalar aplicación</b>). Si se abre dentro de Claude, toca ⋮ → <b>Abrir en Chrome</b> primero.</p>
+        <p class="small mt8">¿No carga? Otra dirección: <a href="${PAGES_URL}" target="_blank" rel="noopener">alldesignkarl.github.io</a> (necesita activar GitHub Pages en
+          <a href="${PAGES_SETTINGS}" target="_blank" rel="noopener">ajustes</a> → Deploy from a branch → <b>ccr-967317e2-ixw499</b> + <b>/docs</b> → Save).</p>
       </div>
       <button class="icon-btn ghost" data-action="hide-install" aria-label="Ocultar">${svg("close")}</button></div>`;
   }

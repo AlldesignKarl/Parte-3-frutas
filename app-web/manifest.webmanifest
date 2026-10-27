@@ -3,21 +3,69 @@
   "short_name": "Mi Panel",
   "description": "Batería, conexión, tareas de estudio y notas.",
   "lang": "es",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#070A14",
   "theme_color": "#070A14",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "icons/icon-monochrome-512.png", "sizes": "512x512", "type": "image/png", "purpose": "monochrome" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-monochrome-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "monochrome"
+    }
   ],
   "shortcuts": [
-    { "name": "Tareas", "url": "./?pestana=tareas", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Foco", "url": "./?pestana=foco", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Notas", "url": "./?pestana=notas", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
-  ]
+    {
+      "name": "Tareas",
+      "url": "./index.html?pestana=tareas",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Foco",
+      "url": "./index.html?pestana=foco",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Notas",
+      "url": "./index.html?pestana=notas",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "id": "mi-panel"
 }
