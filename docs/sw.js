@@ -1,7 +1,7 @@
 // La app abre al momento desde la copia guardada, como una app normal, y funciona sin conexión.
 // Cada versión publicada tiene su propia caché (VERSION la pone el build): cuando hay una nueva se
 // descarga entera de una vez en segundo plano, así nunca se mezclan archivos de dos versiones.
-const VERSION = "68d12f6209";
+const VERSION = "04fc732dbd";
 const CACHE = `mipanel-${VERSION}`;
 const FONTS = "mipanel-fuentes";
 const SHARED = "mipanel-compartido";

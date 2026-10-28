@@ -9,6 +9,8 @@ La misma app que `app-movil/`, pero como página web, para móviles donde no se 
 - **Tareas**: horario de clases, plan de hoy, tu semana con racha y próximos exámenes.
 - **Foco**: temporizador de estudio con sonido de fondo, pantalla encendida y logros.
 - **Notas**: media, evolución, media por asignatura y "¿qué necesito sacar?".
+- **Mensajes** (solo en la app Android de `app-movil/`): WhatsApp, Discord… y llamadas perdidas, que la app
+  lee de los avisos del móvil y le pasa a la página por `window.MiPanelAndroid`.
 - **Dinero**: lo que tienes, gastos por categoría y por día, límite al mes, huchas y extractos de
   Revolut (Excel o CSV, elegidos o compartidos desde Revolut con Mi Panel; se leen en el móvil).
 

@@ -46,6 +46,7 @@ const ICON = {
   music: "M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55c-2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z",
   trash: "M6,19c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2V7H6v12zM19,4h-3.5l-1,-1h-5l-1,1H5v2h14V4z",
   home: "M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z",
+  chat: "M20,2H4C2.9,2 2.01,2.9 2.01,4L2,22l4,-4h14c1.1,0 2,-0.9 2,-2V4c0,-1.1 -0.9,-2 -2,-2zM6,9h12v2H6V9zM14,14H6v-2h8v2zM18,8H6V6h12v2z",
   wallet: "M21,18v1c0,1.1 -0.9,2 -2,2H5c-1.11,0 -2,-0.9 -2,-2V5c0,-1.1 0.89,-2 2,-2h14c1.1,0 2,0.9 2,2v1h-9c-1.11,0 -2,0.9 -2,2v8c0,1.1 0.89,2 2,2h9zM12,16h10V8H12v8zM16,13.5c-0.83,0 -1.5,-0.67 -1.5,-1.5s0.67,-1.5 1.5,-1.5 1.5,0.67 1.5,1.5 -0.67,1.5 -1.5,1.5z",
   piggy: "M19.83,7.5l-2.27,-2.27c0.07,-0.42 0.18,-0.81 0.32,-1.15C17.96,3.9 18,3.71 18,3.5C18,2.67 17.33,2 16.5,2c-1.64,0 -3.09,0.79 -4,2l-5,0C4.46,4 2,6.46 2,9.5S4.5,21 4.5,21l5.5,0v-2h2v2l5.5,0l1.68,-5.59L22,14.47V7.5H19.83zM13,9H8V7h5V9zM16,11c-0.55,0 -1,-0.45 -1,-1c0,-0.55 0.45,-1 1,-1s1,0.45 1,1C17,10.55 16.55,11 16,11z",
   cake: "M12,6c1.11,0 2,-0.9 2,-2 0,-0.38 -0.1,-0.73 -0.29,-1.03L12,0l-1.71,2.97c-0.19,0.3 -0.29,0.65 -0.29,1.03 0,1.1 0.9,2 2,2zM16.6,15.99l-1.07,-1.07 -1.08,1.07c-1.3,1.3 -3.58,1.31 -4.89,0l-1.07,-1.07 -1.09,1.07C6.75,16.64 5.88,17 4.96,17c-0.73,0 -1.4,-0.23 -1.96,-0.61L3,21c0,0.55 0.45,1 1,1h16c0.55,0 1,-0.45 1,-1v-4.61c-0.56,0.38 -1.23,0.61 -1.96,0.61 -0.92,0 -1.79,-0.36 -2.44,-1.01zM18,9h-5L13,7h-2v2L6,9c-1.66,0 -3,1.34 -3,3v1.54c0,1.08 0.88,1.96 1.96,1.96 0.52,0 1.02,-0.2 1.38,-0.57l2.14,-2.13 2.13,2.13c0.74,0.74 2.03,0.74 2.77,0l2.14,-2.13 2.13,2.13c0.37,0.37 0.86,0.57 1.38,0.57 1.08,0 1.96,-0.88 1.96,-1.96L21,12c0.01,-1.66 -1.33,-3 -2.99,-3z",
@@ -75,6 +76,9 @@ function stackClass() {
 const chartClass = () => (animating ? "chart anim" : "chart");
 
 const IS_SAMSUNG = /SamsungBrowser/i.test(navigator.userAgent);
+// Dentro de la app Android (APK) la página puede pedirle cosas al móvil: mensajes, linterna, cascos…
+const NATIVE = !ARTIFACT && typeof window.MiPanelAndroid === "object" ? window.MiPanelAndroid : null;
+const APK_URL = "https://github.com/AlldesignKarl/Parte-3-frutas/releases/download/mi-panel/MiPanel.apk";
 document.documentElement.classList.toggle("samsung", IS_SAMSUNG);
 
 const clampPct = (pct) => Math.max(0, Math.min(100, pct));
@@ -593,9 +597,33 @@ async function connectHeadphones() {
   }
 }
 
+/** Cascos conectados según la app Android: { supported, permission, on, devices: [{ name, battery }] }. */
+function nativeHeadphones() {
+  try {
+    return JSON.parse(NATIVE.headphones() || "{}");
+  } catch {
+    return {};
+  }
+}
+
 function updateBt() {
   const box = $("#bt-body");
   if (!box) return;
+  if (NATIVE) {
+    const h = nativeHeadphones();
+    if (h.supported === false) box.innerHTML = `<p class="hint">Este móvil no tiene Bluetooth.</p>`;
+    else if (!h.permission) {
+      box.innerHTML = `<p class="hint">Para ver la batería de tus cascos, Mi Panel necesita permiso para ver los dispositivos Bluetooth.</p>
+        <button class="btn tonal block mt16" data-action="bt">Dar permiso</button>`;
+    } else if (!h.on) box.innerHTML = `<p class="hint">El Bluetooth está apagado.</p>`;
+    else if (!h.devices?.length) box.innerHTML = `<p class="hint">No hay cascos conectados. Cuando los conectes, aquí sale su batería.</p>`;
+    else {
+      box.innerHTML = h.devices.map((d) => `<div class="row mt8">${svg("headphones")}<div class="grow"><div class="row"><span class="grow strong">${esc(d.name)}</span>
+        <span class="strong">${d.battery == null ? "—" : `${d.battery} %`}</span></div>
+        ${d.battery == null ? `<p class="small" style="margin:4px 0 0">Estos cascos no le dicen su batería al móvil.</p>` : meter(d.battery, { color: batteryColor(d.battery), cls: "mt8" })}</div></div>`).join("");
+    }
+    return;
+  }
   if (ARTIFACT) {
     box.innerHTML = `<p class="hint">La batería de los cascos solo la puede leer la app instalable (APK): una página web no tiene acceso al Bluetooth. Mientras, la ves en Ajustes &gt; Bluetooth.</p>`;
     return;
@@ -934,7 +962,7 @@ async function copyLink(url) {
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 
 function installBanner() {
-  if (isStandalone()) return "";
+  if (isStandalone() || NATIVE) return "";
   if (!ARTIFACT && IS_SAMSUNG) {
     return `<div class="install install-big"><div class="grow">
         <p><b>Instálala desde Chrome</b><br>Samsung Internet la instala en un formato antiguo y Google Play Protect la bloquea. Con Chrome se instala bien.</p>
@@ -1014,6 +1042,9 @@ function homeTiles() {
   const day = today();
   const out = [];
 
+  // Mensajes y llamadas perdidas (ancha, la primera)
+  if (!ARTIFACT) out.push(messagesTile());
+
   // Batería
   const bi = batteryInfo();
   if (bi) {
@@ -1026,6 +1057,15 @@ function homeTiles() {
   } else {
     out.push(tile({ id: "battery", action: "device", color: "var(--muted)", icon: "battery", label: "Batería", value: "—",
       sub: status.batteryBlocked || !navigator.getBattery ? "Ábrela con Chrome" : "Leyendo…" }));
+  }
+
+  // Cascos (solo en la app Android y si hay unos conectados)
+  if (NATIVE) {
+    const hp = nativeHeadphones().devices?.find((d) => d.battery != null);
+    if (hp) {
+      out.push(tile({ id: "headphones", action: "device", color: batteryColor(hp.battery), icon: "headphones", label: "Cascos",
+        value: `${hp.battery}<small>%</small>`, sub: esc(hp.name), visual: `<span class="tile-ring">${ring(hp.battery, `--c1:${batteryColor(hp.battery)}`)}</span>` }));
+    }
   }
 
   // El tiempo (no en claude.ai)
@@ -1113,6 +1153,122 @@ function homeTiles() {
 function moneyText(cents) {
   const [int, dec] = L.fmtMoney(cents).replace(" €", "").split(",");
   return `${int}<small>,${dec} €</small>`;
+}
+
+// ================================================================ Mensajes y llamadas perdidas (app Android)
+
+const SEEN_KEY = "mipanel:mensajes-vistos";
+const APP_COLORS = {
+  WhatsApp: "#25d366", "WhatsApp Business": "#25d366", Discord: "#7983f5", Telegram: "#2aabee",
+  Instagram: "#f05a8c", Snapchat: "#fffc00", Mensajes: "#6aa3ff", "Teléfono": "var(--bad)",
+};
+const appColor = (app) => APP_COLORS[app] || "var(--accent)";
+
+function nativeMessages() {
+  try {
+    return JSON.parse(NATIVE.messages() || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function messagesTile() {
+  const base = { id: "messages", action: "messages", color: "#25d366", icon: "chat", label: "Mensajes", wide: true };
+  if (!NATIVE) return tile({ ...base, value: "WhatsApp y llamadas", sub: "Con la app Android de Mi Panel · toca para verla" });
+  if (!NATIVE.hasMessageAccess()) return tile({ ...base, value: "Activa tus mensajes", sub: "WhatsApp, Discord y llamadas perdidas aquí" });
+  const g = L.groupMessages(nativeMessages(), storage.get(SEEN_KEY, 0));
+  const last = [...g.calls.slice(0, 1), ...g.chats.slice(0, 1).map((c) => c.last)].sort((a, b) => b.time - a.time)[0];
+  if (!last) return tile({ ...base, value: "Sin mensajes nuevos", sub: "Aquí salen al momento" });
+  const what = last.kind === "llamada" ? `📞 Llamada perdida de ${esc(last.chat)}` : `${esc(last.sender === last.chat ? last.chat : `${last.sender} · ${last.chat}`)}: ${esc(last.text)}`;
+  return tile({ ...base, label: g.unread ? `Mensajes · ${g.unread} ${g.unread === 1 ? "nuevo" : "nuevos"}` : "Mensajes",
+    value: `<span class="msg-preview">${what}</span>`, sub: `${esc(last.app)} · ${L.relativeTime(last.time)}` });
+}
+
+function openMessagesSheet() {
+  const root = overlay(`
+    <div class="sheet live-actions" role="dialog" aria-modal="true" aria-labelledby="ms-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="ms-title">Mensajes</h2>
+        ${NATIVE ? `<button class="icon-btn ghost" id="ms-clear" aria-label="Borrar todos">${svg("trash")}</button>` : ""}
+      </div>
+      <div class="sheet-body" id="ms-body"></div>
+    </div>`);
+  const body = $("#ms-body", root);
+  const seenBefore = storage.get(SEEN_KEY, 0);
+  const draw = () => {
+    if (!root.isConnected) return;
+    if (!NATIVE) {
+      body.innerHTML = `
+        <p class="hint">Una web (aunque esté instalada) no puede leer los avisos de otras apps: Android no lo deja. Para ver aquí tus mensajes de WhatsApp, Discord… y las llamadas perdidas, instala la <b>app Android de Mi Panel</b>. Es la misma Mi Panel, con esto añadido.</p>
+        <ol class="steps">
+          <li>Tu padre o tu madre tiene que permitir <b>apps de fuentes desconocidas</b> en tu móvil desde su app <b>Family Link</b>.</li>
+          <li>Descarga la app y ábrela para instalarla.</li>
+          <li>Ábrela, entra en <b>Mensajes</b> y toca <b>Dar acceso</b>.</li>
+        </ol>
+        <a class="btn block mt16" href="${APK_URL}" target="_blank" rel="noopener">${svg("add")}Descargar la app Android</a>
+        <p class="small mt12">Tus datos de esta app no pasan solos a la otra: guarda una copia (⋮ → Copia de seguridad) y recupérala allí.</p>`;
+      return;
+    }
+    if (!NATIVE.hasMessageAccess()) {
+      body.innerHTML = `
+        <div class="empty small-empty"><div class="glow-icon">${svg("chat")}</div><h2>Tus mensajes, aquí</h2>
+          <p class="hint">Dale permiso a Mi Panel para leer tus avisos y verás aquí los mensajes de WhatsApp, Discord, Telegram, Instagram… y las llamadas perdidas.</p></div>
+        <button class="btn block" data-action="msg-access">Dar acceso</button>
+        <ol class="steps">
+          <li>Se abren los ajustes: activa <b>Mi Panel</b> y acepta.</li>
+          <li>Si sale <b>«Ajuste restringido»</b>: toca <b>Abrir ajustes de la app</b> aquí abajo → ⋮ (arriba a la derecha) → <b>Permitir ajustes restringidos</b>, y vuelve a darle acceso.</li>
+        </ol>
+        <button class="btn glass block mt12" data-action="app-settings">Abrir ajustes de la app</button>
+        <p class="small mt12">Los mensajes se guardan solo en tu móvil (los 300 últimos) y no se mandan a ningún sitio.</p>`;
+      return;
+    }
+    const g = L.groupMessages(nativeMessages(), seenBefore);
+    if (!g.calls.length && !g.chats.length) {
+      body.innerHTML = `<div class="empty small-empty"><div class="glow-icon">${svg("chat")}</div><h2>Aún no hay mensajes</h2>
+        <p class="hint">En cuanto te llegue un WhatsApp, un mensaje de Discord o una llamada perdida, sale aquí.</p></div>`;
+      return;
+    }
+    let html = "";
+    const calls = g.calls.slice(0, 10);
+    if (calls.length) {
+      html += `<p class="day-label">Llamadas perdidas</p>${calls.map((c) => `
+        <button type="button" class="msg-row call${c.time > seenBefore ? " new" : ""}" data-msg="${esc(c.id)}">
+          <span class="msg-icon" style="--app:var(--bad)">${svg("phone")}</span>
+          <span class="grow"><span class="strong">${esc(c.chat)}</span><span class="small">${esc(c.app === "Teléfono" ? c.text : `${c.app} · ${c.text}`)}</span></span>
+          <span class="msg-time">${L.relativeTime(c.time)}</span>
+        </button>`).join("")}`;
+    }
+    if (g.chats.length) {
+      html += `<p class="day-label">Chats</p>${g.chats.slice(0, 40).map((c) => `
+        <button type="button" class="chat-card${c.unread ? " new" : ""}" data-msg="${esc(c.last.id)}" style="--app:${appColor(c.app)}">
+          <span class="chat-head"><span class="app-dot"></span><span class="strong grow">${esc(c.chat)}</span>
+            ${c.unread ? `<span class="pill" style="--pill:var(--app)">${c.unread}</span>` : ""}<span class="msg-time">${L.relativeTime(c.last.time)}</span></span>
+          ${c.items.slice(0, 3).reverse().map((m) => `<span class="chat-line"><b>${esc(m.sender === c.chat ? "" : `${m.sender}: `)}</b>${esc(m.text)}</span>`).join("")}
+          <span class="small">${esc(c.app)} · toca para contestar</span>
+        </button>`).join("")}`;
+    }
+    body.innerHTML = html;
+  };
+  body.addEventListener("click", (e) => {
+    const m = e.target.closest("[data-msg]");
+    if (m && !NATIVE.openMessage(m.dataset.msg)) toast("No se ha podido abrir la app");
+  });
+  $("#ms-clear", root)?.addEventListener("click", async () => {
+    if (await confirmDialog("¿Borrar todos los mensajes?", "Se borran de Mi Panel (no de WhatsApp ni de las otras apps).", "Borrar")) {
+      NATIVE.clearMessages();
+      draw();
+      updateHome();
+    }
+  });
+  const live = () => draw();
+  addEventListener("mipanel-mensajes", live);
+  onClosed(root, () => {
+    removeEventListener("mipanel-mensajes", live);
+    storage.set(SEEN_KEY, Date.now());
+    updateHome();
+  });
+  draw();
 }
 
 // ================================================================ Mi móvil (detalle: batería, tiempo, cascos, conexión…)
@@ -2469,7 +2625,24 @@ function newerBalance(balance) {
 }
 
 /** Si se ha compartido un extracto con Mi Panel (desde Revolut, Archivos…), lo abre. */
+/** Extracto compartido con la app Android (Revolut → Compartir → Mi Panel). */
+function takeNativeSharedFile() {
+  const raw = NATIVE?.takeSharedFile();
+  if (!raw) return;
+  try {
+    const f = JSON.parse(raw);
+    const bin = atob(f.data);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    if (state.tab !== "dinero") setTab("dinero");
+    openRevolutImport(new Blob([bytes], { type: f.type || "application/octet-stream" }));
+  } catch {
+    toast("No se ha podido abrir el archivo compartido");
+  }
+}
+
 async function takeSharedFile() {
+  if (NATIVE) return takeNativeSharedFile();
   const params = new URLSearchParams(location.search);
   if (ARTIFACT || !params.has("importar")) return;
   params.delete("importar");
@@ -2531,6 +2704,17 @@ const torch = { on: false, stream: null };
 
 async function toggleTorch() {
   if (torch.on) return stopTorch();
+  if (NATIVE) {
+    if (NATIVE.setTorch(true)) {
+      torch.on = true;
+      navigator.vibrate?.(30);
+      updateToolButtons();
+      toast("Linterna encendida: sigue aunque salgas de la app. Toca otra vez para apagarla.", null, null, 5000);
+    } else {
+      openScreenLight("Este móvil no deja encender el flash ahora (¿lo está usando la cámara?).");
+    }
+    return;
+  }
   const fallback = (why) => openScreenLight(`${why} Mientras, la pantalla hace de luz.`);
   if (!navigator.mediaDevices?.getUserMedia) return fallback("Aquí no se puede usar el flash.");
   let stream;
@@ -2559,6 +2743,7 @@ async function toggleTorch() {
 }
 
 function stopTorch() {
+  if (NATIVE) NATIVE.setTorch(false);
   torch.stream?.getTracks().forEach((t) => t.stop());
   torch.stream = null;
   torch.on = false;
@@ -3080,6 +3265,7 @@ function stopAmbient() {
 
 let wakeLock = null;
 async function keepScreenOn(on) {
+  if (NATIVE) return NATIVE.keepScreenOn(!!on);
   try {
     if (on && !wakeLock && navigator.wakeLock && !document.hidden) {
       wakeLock = await navigator.wakeLock.request("screen");
@@ -3330,7 +3516,7 @@ function focusDoneDialog() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && torch.on) stopTorch(); // el navegador suelta la cámara al salir
+  if (document.hidden && torch.on && !NATIVE) stopTorch(); // el navegador suelta la cámara al salir
   if (!document.hidden && timer.running) {
     tick();
     keepScreenOn(true); // el navegador la suelta al salir de la app
@@ -3377,6 +3563,11 @@ function openBackupDialog() {
       } catch (e) {
         msg.textContent = e?.code === "declined" ? "" : "No se ha podido guardar la copia.";
       }
+      return;
+    }
+    if (NATIVE) {
+      const ok = NATIVE.saveFile(`mipanel-copia-${today()}.json`, "application/json", JSON.stringify(data, null, 2));
+      msg.textContent = ok ? "✓ Copia guardada en Descargas" : "No se ha podido guardar la copia.";
       return;
     }
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
@@ -3591,7 +3782,8 @@ document.addEventListener("click", (e) => {
       render();
       break;
     case "bt":
-      connectHeadphones();
+      if (NATIVE) NATIVE.requestBluetooth();
+      else connectHeadphones();
       break;
     case "weather":
       loadWeather({ relocate: true });
@@ -3724,6 +3916,15 @@ document.addEventListener("click", (e) => {
     case "events":
       openEventsSheet();
       break;
+    case "messages":
+      openMessagesSheet();
+      break;
+    case "msg-access":
+      NATIVE?.openMessageAccess();
+      break;
+    case "app-settings":
+      NATIVE?.openAppSettings();
+      break;
     case "tool":
       openTool(el.dataset.tool);
       break;
@@ -3787,6 +3988,15 @@ else loadData();
 render();
 takeSharedFile();
 if (!ARTIFACT) announceToday();
+
+if (NATIVE) {
+  addEventListener("mipanel-mensajes", () => updateHome());
+  addEventListener("mipanel-cascos", () => {
+    updateBt();
+    updateHome();
+  });
+  addEventListener("mipanel-compartido", takeNativeSharedFile);
+}
 
 // Accesos directos del icono que hacen algo nada más abrir: ?accion=gasto / qr
 const startAction = new URLSearchParams(location.search).get("accion");

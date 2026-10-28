@@ -820,3 +820,45 @@ export function randomInt(min, max, rand = (n) => crypto.getRandomValues(new Uin
   while (v >= limit);
   return min + (v % span);
 }
+
+// ---------------------------------------------------------------- Mensajes (app Android)
+
+/**
+ * Mensajes y llamadas perdidas (los manda la app Android) → llamadas y chats. Cada chat junta sus
+ * mensajes (del más nuevo al más viejo) y cuenta los que han llegado después de `seen`.
+ */
+export function groupMessages(items, seen = 0) {
+  const calls = [];
+  const chats = new Map();
+  for (const m of [...items].sort((a, b) => b.time - a.time)) {
+    if (m.kind === "llamada") {
+      calls.push(m);
+      continue;
+    }
+    const key = `${m.pkg}|${m.chat}`;
+    if (!chats.has(key)) chats.set(key, { key, app: m.app, pkg: m.pkg, chat: m.chat, items: [], unread: 0 });
+    const c = chats.get(key);
+    c.items.push(m);
+    if (m.time > seen && m.sender !== "Tú") c.unread++;
+  }
+  const list = [...chats.values()].map((c) => ({ ...c, last: c.items[0] }));
+  return {
+    calls,
+    chats: list,
+    unread: list.reduce((s, c) => s + c.unread, 0) + calls.filter((c) => c.time > seen).length,
+  };
+}
+
+/** "ahora", "hace 5 min", "10:24", "ayer 22:10", "lun 9:05" o "21 oct". */
+export function relativeTime(ms, now = Date.now()) {
+  const diff = Math.max(0, now - ms);
+  if (diff < 60000) return "ahora";
+  if (diff < 3600000) return `hace ${Math.floor(diff / 60000)} min`;
+  const d = new Date(ms);
+  const time = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const days = daysBetween(todayIso(d), todayIso(new Date(now)));
+  if (days === 0) return time;
+  if (days === 1) return `ayer ${time}`;
+  if (days < 7) return `${["dom", "lun", "mar", "mié", "jue", "vie", "sáb"][d.getDay()]} ${time}`;
+  return fmtDateShort(todayIso(d)).replace(/^\S+ /, ""); // "21 oct"
+}

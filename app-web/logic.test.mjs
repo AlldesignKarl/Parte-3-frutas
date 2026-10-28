@@ -274,3 +274,25 @@ test("herramientas: QR de WiFi y números al azar", () => {
   }
   assert.equal(seen.size, 6);
 });
+
+test("mensajes: llamadas aparte, chats juntos y los nuevos contados", () => {
+  const t = 1_790_000_000_000;
+  const m = (id, kind, pkg, chat, sender, text, time) => ({ id, kind, pkg, app: pkg === "com.whatsapp" ? "WhatsApp" : "Discord", chat, sender, text, time, key: "k" });
+  const g = L.groupMessages([
+    m("1", "mensaje", "com.whatsapp", "Familia", "Mamá", "¿Vienes?", t - 5000),
+    m("2", "mensaje", "com.whatsapp", "Familia", "Tú", "Sí", t - 4000),
+    m("3", "mensaje", "com.discord", "Leo", "Leo", "¿Jugamos?", t - 3000),
+    m("4", "llamada", "com.samsung.android.dialer", "Papá", "Papá", "Llamada perdida", t - 2000),
+    m("5", "mensaje", "com.whatsapp", "Familia", "Papá", "Vale", t - 1000),
+  ], t - 4500);
+  assert.deepEqual(g.calls.map((c) => c.id), ["4"]);
+  assert.deepEqual(g.chats.map((c) => [c.chat, c.items.length, c.unread, c.last.text]), [["Familia", 3, 1, "Vale"], ["Leo", 1, 1, "¿Jugamos?"]]);
+  assert.equal(g.unread, 3); // los tuyos no cuentan como nuevos
+  const now = new Date(2026, 9, 28, 18, 0).getTime();
+  assert.equal(L.relativeTime(now - 20000, now), "ahora");
+  assert.equal(L.relativeTime(now - 5 * 60000, now), "hace 5 min");
+  assert.equal(L.relativeTime(new Date(2026, 9, 28, 9, 5).getTime(), now), "9:05");
+  assert.equal(L.relativeTime(new Date(2026, 9, 27, 22, 10).getTime(), now), "ayer 22:10");
+  assert.equal(L.relativeTime(new Date(2026, 9, 26, 9, 5).getTime(), now), "lun 9:05");
+  assert.equal(L.relativeTime(new Date(2026, 9, 21, 9, 0).getTime(), now), "21 oct");
+});
