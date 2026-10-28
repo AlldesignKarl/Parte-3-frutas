@@ -163,3 +163,114 @@ test("tiempo: códigos de la OMM", () => {
   assert.equal(L.weatherInfo(95).label, "Tormenta");
   assert.equal(L.weatherInfo(1234).label, "—");
 });
+
+test("dinero: importes, totales, resumen del mes y por día", () => {
+  assert.equal(L.parseAmount("12,5"), 1250);
+  assert.equal(L.parseAmount(" 3 €"), 300);
+  assert.equal(L.parseAmount("0,99"), 99);
+  assert.equal(L.parseAmount("0"), null);
+  assert.equal(L.parseAmount("1,234"), null);
+  assert.equal(L.parseAmount("1.234,50"), 123450);
+  assert.equal(L.parseAmount("12.5"), 1250);
+  assert.equal(L.parseAmount("abc"), null);
+  assert.equal(L.fmtMoney(123456), "1.234,56 €");
+  assert.equal(L.fmtMoney(500, { short: true }), "5 €");
+  assert.equal(L.fmtMoney(-250, { sign: true }), "−2,50 €");
+  assert.equal(L.fmtMoney(250, { sign: true }), "+2,50 €");
+  const e = (id, type, amount, category, date) => ({ id, type, amount, category, date, note: "", createdAt: Number(id) });
+  const money = {
+    entries: [e("1", "ingreso", 5000, "paga", "2026-10-01"), e("2", "gasto", 1200, "comida", "2026-10-26"),
+      e("3", "gasto", 800, "ocio", "2026-10-27"), e("4", "gasto", 300, "comida", "2026-10-27"), e("5", "gasto", 1000, "ropa", "2026-09-30")],
+    goals: [{ id: "g", name: "Cascos", emoji: "🎧", target: 6000, saved: 1500, createdAt: 1 }],
+    budget: 3000,
+  };
+  assert.deepEqual(L.moneyTotals(money), { income: 5000, spent: 3300, total: 1700, saved: 1500, available: 200 });
+  const m = L.monthSummary(money.entries, "2026-10");
+  assert.equal(m.spent, 2300);
+  assert.equal(m.income, 5000);
+  assert.deepEqual(m.byCat.map((x) => [x.cat.id, x.amount]), [["comida", 1500], ["ocio", 800]]);
+  assert.deepEqual(L.spendByDay(money.entries, 3, "2026-10-27").map((d) => d.value), [0, 1200, 1100]);
+  assert.deepEqual(L.entriesByDay(money.entries).map((g) => [g.date, g.items.map((x) => x.id)]),
+    [["2026-10-27", ["4", "3"]], ["2026-10-26", ["2"]], ["2026-10-01", ["1"]], ["2026-09-30", ["5"]]]);
+  assert.equal(L.moneyCat("gasto", "nada").id, "otros");
+});
+
+test("cuentas atrás: cumpleaños que se repiten, años que cumple y fechas pasadas", () => {
+  const ev = (id, name, date, type) => ({ id, name, date, type, emoji: "" });
+  const list = L.upcomingEvents([
+    ev("a", "Ana", "2011-11-02", "cumple"),
+    ev("b", "Viaje", "2026-12-20", "evento"),
+    ev("c", "Examen pasado", "2026-10-01", "evento"),
+    ev("d", "Leo", "2012-10-28", "cumple"),
+    ev("e", "Bisiesto", "2012-02-29", "cumple"),
+  ], "2026-10-28");
+  assert.deepEqual(list.map((x) => [x.event.id, x.days, x.turns]), [["d", 0, 14], ["a", 5, 15], ["b", 53, null], ["e", 123, 15]]);
+  assert.equal(list[3].date, "2027-02-28");
+  assert.equal(L.nextOccurrence(ev("x", "X", "2010-01-05", "cumple"), "2026-10-28"), "2027-01-05");
+  assert.equal(L.countdownLabel(0), "¡Hoy!");
+  assert.equal(L.countdownLabel(1), "Mañana");
+  assert.equal(L.countdownLabel(5), "En 5 días");
+  assert.equal(L.countdownLabel(21), "En 3 semanas");
+  assert.equal(L.countdownLabel(90), "En 3 meses");
+});
+
+test("extracto de Revolut: CSV en inglés y en español, sin repetir y con el saldo", async () => {
+  const { parseCsv } = await import("./importers.js");
+  const csv = `Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+TOPUP,Current,2026-10-01 10:00:00,2026-10-01 10:00:05,Top-up by *1234,20.00,0.00,EUR,COMPLETED,25.00
+CARD_PAYMENT,Current,2026-10-02 13:10:00,2026-10-03 09:00:00,McDonald's,-7.50,0.00,EUR,COMPLETED,17.50
+CARD_PAYMENT,Current,2026-10-04 18:00:00,,Steam,-9.99,0.00,EUR,PENDING,
+CARD_PAYMENT,Current,2026-10-05 18:00:00,2026-10-05 18:00:01,"Renfe, Madrid",-2.40,0.10,EUR,COMPLETED,15.00
+EXCHANGE,Current,2026-10-06 12:00:00,2026-10-06 12:00:00,Exchanged to USD,-5.00,0.00,USD,COMPLETED,10.00
+TRANSFER,Savings,2026-10-07 12:00:00,2026-10-07 12:00:00,To pocket,-3.00,0.00,EUR,COMPLETED,3.00
+`;
+  const rows = parseCsv(csv);
+  assert.equal(rows[4][4], "Renfe, Madrid");
+  const r = L.revolutEntries(rows, new Set(), 1000);
+  assert.deepEqual(r.entries.map((e) => [e.type, e.amount, e.category, e.date]), [
+    ["ingreso", 2000, "paga", "2026-10-01"],
+    ["gasto", 750, "comida", "2026-10-03"],
+    ["gasto", 250, "transporte", "2026-10-05"],
+  ]);
+  assert.deepEqual(r.skipped, { repeated: 0, otherCurrency: 2, notDone: 1 });
+  assert.deepEqual(r.balance, { balance: 1500, date: "2026-10-05" });
+  assert.deepEqual(r.opening, { amount: 500, date: "2026-10-01" });
+  // Meter el mismo extracto otra vez no repite nada
+  const again = L.revolutEntries(rows, new Set(r.entries.map((e) => e.importId)), 2000);
+  assert.equal(again.entries.length, 0);
+  assert.equal(again.skipped.repeated, 3);
+  // En español, con punto y coma y coma decimal
+  const es = parseCsv(`Tipo;Producto;Fecha de inicio;Fecha de finalización;Descripción;Importe;Comisión;Divisa;State;Saldo
+Pago con tarjeta;Actual;27/10/2026 14:03;27/10/2026 14:03;Zara;-25,90;0,00;EUR;COMPLETADO;74,10`);
+  const r2 = L.revolutEntries(es);
+  assert.deepEqual(r2.entries.map((e) => [e.amount, e.category, e.date]), [[2590, "ropa", "2026-10-27"]]);
+  assert.throws(() => L.revolutEntries(parseCsv("a,b\n1,2")), /columnas/);
+  assert.equal(L.guessCategory("Spotify P1234", false), "movil");
+  assert.equal(L.guessCategory("Uber Eats", false), "comida");
+});
+
+test("extracto de Revolut en Excel (.xlsx)", async () => {
+  const { readXlsx } = await import("./importers.js");
+  const { readFileSync } = await import("node:fs");
+  const rows = await readXlsx(readFileSync(new URL("./test-data/revolut.xlsx", import.meta.url)));
+  assert.equal(rows[0][4], "Description");
+  const r = L.revolutEntries(rows);
+  assert.deepEqual(r.entries.map((e) => [e.type, e.amount, e.category, e.date]), [
+    ["ingreso", 1500, "paga", "2026-10-20"],
+    ["gasto", 1299, "ocio", "2026-10-21"],
+  ]);
+  assert.deepEqual(r.balance, { balance: 3201, date: "2026-10-21" });
+});
+
+test("herramientas: QR de WiFi y números al azar", () => {
+  assert.deepEqual(L.parseWifiQr("WIFI:T:WPA;S:Mi\\;Casa;P:cl\\:ave;;"), { ssid: "Mi;Casa", password: "cl:ave", type: "WPA" });
+  assert.deepEqual(L.parseWifiQr("WIFI:S:Abierta;;"), { ssid: "Abierta", password: "", type: "" });
+  assert.equal(L.parseWifiQr("https://example.com"), null);
+  const seen = new Set();
+  for (let i = 0; i < 400; i++) {
+    const v = L.randomInt(1, 6);
+    assert.ok(v >= 1 && v <= 6);
+    seen.add(v);
+  }
+  assert.equal(seen.size, 6);
+});

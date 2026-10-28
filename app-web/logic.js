@@ -531,3 +531,292 @@ export function weatherInfo(code, isDay = true) {
   if (c === 95 || c === 96 || c === 99) return { label: "Tormenta", icon: "⛈️" };
   return { label: "—", icon: "🌡️" };
 }
+
+// ---------------------------------------------------------------- Dinero (importes en céntimos)
+
+export const EXPENSE_CATS = [
+  { id: "comida", label: "Comida", icon: "🍔" },
+  { id: "ocio", label: "Ocio", icon: "🎮" },
+  { id: "ropa", label: "Ropa", icon: "👕" },
+  { id: "transporte", label: "Transporte", icon: "🚌" },
+  { id: "movil", label: "Móvil y apps", icon: "📱" },
+  { id: "regalos", label: "Regalos", icon: "🎁" },
+  { id: "estudios", label: "Estudios", icon: "📚" },
+  { id: "otros", label: "Otros", icon: "📦" },
+];
+export const INCOME_CATS = [
+  { id: "paga", label: "Paga", icon: "💶" },
+  { id: "regalo", label: "Regalo", icon: "🎁" },
+  { id: "trabajo", label: "Trabajos", icon: "💼" },
+  { id: "venta", label: "Ventas", icon: "🏷️" },
+  { id: "otros", label: "Otros", icon: "💰" },
+];
+export const moneyCat = (type, id) =>
+  (type === "ingreso" ? INCOME_CATS : EXPENSE_CATS).find((c) => c.id === id) || { id: "otros", label: "Otros", icon: type === "ingreso" ? "💰" : "📦" };
+
+export const emptyMoney = () => ({ entries: [], goals: [], budget: null });
+
+/** "12,5" → 1250 céntimos. Vacío, cero, negativo o más de un millón → null. */
+export function parseAmount(text) {
+  let t = String(text).trim().replace(/\s|€/g, "");
+  if (t.includes(",")) t = t.replace(/\./g, "").replace(",", "."); // "1.234,50"
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
+  const cents = Math.round(Number(t) * 100);
+  return cents > 0 && cents <= 100000000 ? cents : null;
+}
+
+/** 123456 → "1.234,56 €" (con `sign`, "+1.234,56 €" o "−1.234,56 €"). Sin decimales si son ,00 y `short`. */
+export function fmtMoney(cents, { sign = false, short = false } = {}) {
+  const abs = Math.abs(Math.round(cents));
+  const euros = Math.floor(abs / 100);
+  const dec = String(abs % 100).padStart(2, "0");
+  const int = String(euros).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const num = short && dec === "00" ? int : `${int},${dec}`;
+  const s = sign ? (cents > 0 ? "+" : cents < 0 ? "−" : "") : cents < 0 ? "−" : "";
+  return `${s}${num} €`;
+}
+
+/** Lo que tienes: entra − sale; de eso, lo apartado en huchas y lo que queda libre. */
+export function moneyTotals(money) {
+  let income = 0;
+  let spent = 0;
+  for (const e of money.entries) {
+    if (e.type === "ingreso") income += e.amount;
+    else spent += e.amount;
+  }
+  const saved = money.goals.reduce((s, g) => s + Math.max(0, g.saved), 0);
+  return { income, spent, total: income - spent, saved, available: income - spent - saved };
+}
+
+export const monthOf = (iso) => iso.slice(0, 7);
+
+/** Gastos e ingresos de un mes ("2026-10") y los gastos por categoría, de más a menos. */
+export function monthSummary(entries, month) {
+  let spent = 0;
+  let income = 0;
+  const cats = {};
+  for (const e of entries) {
+    if (monthOf(e.date) !== month) continue;
+    if (e.type === "ingreso") income += e.amount;
+    else {
+      spent += e.amount;
+      cats[e.category] = (cats[e.category] || 0) + e.amount;
+    }
+  }
+  const byCat = Object.entries(cats)
+    .map(([id, amount]) => ({ cat: moneyCat("gasto", id), amount }))
+    .sort((a, b) => b.amount - a.amount);
+  return { spent, income, byCat };
+}
+
+/** Gasto de cada uno de los últimos `n` días (el último es hoy), en céntimos. */
+export function spendByDay(entries, n, today) {
+  const days = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const date = addDays(today, -i);
+    const value = entries.filter((e) => e.type !== "ingreso" && e.date === date).reduce((s, e) => s + e.amount, 0);
+    days.push({ date, value });
+  }
+  return days;
+}
+
+/** Movimientos del más reciente al más antiguo, agrupados por día. */
+export function entriesByDay(entries) {
+  const sorted = [...entries].sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1));
+  const groups = [];
+  for (const e of sorted) {
+    const last = groups[groups.length - 1];
+    if (last && last.date === e.date) last.items.push(e);
+    else groups.push({ date: e.date, items: [e] });
+  }
+  return groups;
+}
+
+// ---------------------------------------------------------------- Cuentas atrás (cumpleaños y fechas)
+
+/** Próxima vez que toca: los cumpleaños se repiten cada año (el 29 de febrero, el 28 si no es bisiesto). */
+export function nextOccurrence(event, today) {
+  if (event.type !== "cumple") return event.date;
+  const [, m, d] = event.date.split("-").map(Number);
+  const year = Number(today.slice(0, 4));
+  const on = (y) => {
+    const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    const day = m === 2 && d === 29 && !leap ? 28 : d;
+    return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  };
+  const thisYear = on(year);
+  return thisYear >= today ? thisYear : on(year + 1);
+}
+
+/** Las que quedan (hoy incluido), de la más cercana a la más lejana, con días que faltan y años que cumple. */
+export function upcomingEvents(events, today) {
+  return events
+    .map((e) => {
+      const date = nextOccurrence(e, today);
+      const birthYear = Number(e.date.slice(0, 4));
+      const turns = e.type === "cumple" && birthYear > 1900 ? Number(date.slice(0, 4)) - birthYear : null;
+      return { event: e, date, days: daysBetween(today, date), turns: turns > 0 ? turns : null };
+    })
+    .filter((x) => x.days >= 0)
+    .sort((a, b) => a.days - b.days || a.event.name.localeCompare(b.event.name, "es"));
+}
+
+/** "hoy", "mañana", "en 5 días", "en 3 semanas"… */
+export function countdownLabel(days) {
+  if (days === 0) return "¡Hoy!";
+  if (days === 1) return "Mañana";
+  if (days < 14) return `En ${days} días`;
+  if (days < 60) return `En ${Math.round(days / 7)} semanas`;
+  return `En ${Math.round(days / 30.4)} meses`;
+}
+
+// ---------------------------------------------------------------- Extracto de Revolut → movimientos
+
+const norm = (s) => String(s).trim().toLowerCase().normalize("NFD").replace(/\p{Mn}+/gu, "");
+// Nombres de columna en inglés y en español (el extracto sale en el idioma de la app).
+const COLUMNS = {
+  type: ["type", "tipo"],
+  product: ["product", "producto"],
+  started: ["started date", "fecha de inicio", "fecha inicio"],
+  completed: ["completed date", "fecha de finalizacion", "fecha de finalización", "fecha completada", "fecha"],
+  description: ["description", "descripcion", "concepto"],
+  amount: ["amount", "importe", "cantidad"],
+  fee: ["fee", "comision", "comisiones"],
+  currency: ["currency", "divisa", "moneda"],
+  state: ["state", "estado"],
+  balance: ["balance", "saldo"],
+};
+
+/** Número de una celda: 3.5, "-3.50", "-3,50", "1.234,50". */
+function cellNumber(v) {
+  if (typeof v === "number") return v;
+  let t = String(v).trim().replace(/\s|€/g, "");
+  if (!t) return null;
+  if (t.includes(",")) t = t.includes(".") && t.lastIndexOf(",") > t.lastIndexOf(".") ? t.replace(/\./g, "").replace(",", ".") : t.replace(",", t.includes(".") ? "" : ".");
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Fecha de una celda: "2026-10-27 14:03:22", "27/10/2026 14:03" o número de serie de Excel. */
+function cellDate(v) {
+  if (typeof v === "number") {
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v * 86400000));
+    return { date: d.toISOString().slice(0, 10), time: d.toISOString().slice(11, 19) };
+  }
+  const t = String(v).trim();
+  let m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}:\d{2}(?::\d{2})?))?/.exec(t);
+  if (m) return { date: `${m[1]}-${m[2]}-${m[3]}`, time: m[4] || "" };
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,?\s+(\d{1,2}:\d{2}(?::\d{2})?))?/.exec(t);
+  if (m) return { date: `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`, time: m[4] || "" };
+  return null;
+}
+
+// Palabras que delatan la categoría de un pago.
+const GUESS = [
+  ["comida", /mcdonald|burger|kfc|telepizza|domino|glovo|just ?eat|uber ?eats|starbucks|mercadona|carrefour|lidl|dia\b|alcampo|eroski|aldi|panaderia|cafeteria|restaurante|bar\b|100 montaditos|goiko|tgb|foster|vips|kebab|pizza/],
+  ["transporte", /renfe|metro|emt|tmb|bus\b|autobus|alsa|uber(?! ?eats)|cabify|bolt|bicing|taxi|tram|parking|gasolin|repsol|cepsa/],
+  ["ropa", /zara|pull ?& ?bear|pull and bear|bershka|stradivarius|shein|primark|h ?& ?m|mango|jd sports|foot ?locker|decathlon|nike|adidas|springfield|lefties|vinted/],
+  ["movil", /spotify|netflix|apple|itunes|google|play store|disney|hbo|max\.com|prime video|amazon prime|youtube|twitch|discord|movistar|vodafone|orange|digi|lowi|simyo|pepephone|o2/],
+  ["ocio", /steam|playstation|psn|xbox|nintendo|epic games|roblox|fortnite|riot|cine|yelmo|cinesa|kinepolis|ocine|ticketmaster|entradas|fnac|game\b|bowling|karting/],
+  ["estudios", /libreria|papeleria|casa del libro|abacus|copisteria|academia|escuela|instituto|colegio/],
+  ["regalos", /regalo|gift/],
+];
+
+/** Categoría probable a partir del texto del extracto (o "otros"). */
+export function guessCategory(description, income) {
+  const d = norm(description);
+  if (income) return /top.?up|recarga|ingreso de|pocket money|paga/.test(d) ? "paga" : /regalo|gift/.test(d) ? "regalo" : "otros";
+  return GUESS.find(([, re]) => re.test(d))?.[0] || "otros";
+}
+
+/**
+ * Filas del extracto (la primera, los títulos) → movimientos nuevos. Solo los terminados y en euros
+ * de la cuenta principal; los que ya se habían metido antes (mismo `importId`) se saltan.
+ * Devuelve { entries, balance: { balance, date } | null, opening, skipped: { repeated, otherCurrency, notDone } }.
+ */
+export function revolutEntries(rows, knownIds = new Set(), now = Date.now()) {
+  if (!rows.length) throw new Error("vacío");
+  const head = rows[0].map(norm);
+  const col = {};
+  for (const [key, names] of Object.entries(COLUMNS)) {
+    const i = head.findIndex((h) => names.includes(h));
+    if (i >= 0) col[key] = i;
+  }
+  if (col.amount == null || (col.completed == null && col.started == null) || col.description == null) throw new Error("columnas");
+  const skipped = { repeated: 0, otherCurrency: 0, notDone: 0 };
+  const parsed = [];
+  for (const r of rows.slice(1)) {
+    const amount = cellNumber(r[col.amount]);
+    const when = cellDate(r[col.completed] ?? "") || cellDate(r[col.started] ?? "");
+    if (amount == null || !when || amount === 0) continue;
+    const stateText = col.state != null ? norm(r[col.state]) : "completed";
+    if (stateText && !/^(completed|completado|completada)$/.test(stateText)) {
+      skipped.notDone++;
+      continue;
+    }
+    const currency = col.currency != null ? String(r[col.currency]).trim().toUpperCase() : "EUR";
+    const product = col.product != null ? norm(r[col.product]) : "";
+    if ((currency && currency !== "EUR") || (product && !/^(current|actual|cuenta corriente|corriente)$/.test(product))) {
+      skipped.otherCurrency++;
+      continue;
+    }
+    const fee = col.fee != null ? Math.abs(cellNumber(r[col.fee]) || 0) : 0;
+    const balance = col.balance != null ? cellNumber(r[col.balance]) : null;
+    const description = String(r[col.description]).trim();
+    parsed.push({ ...when, amount, fee, balance, description, type: col.type != null ? String(r[col.type]).trim() : "" });
+  }
+  parsed.sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : a.date + a.time > b.date + b.time ? 1 : 0));
+  const entries = [];
+  parsed.forEach((p, i) => {
+    const importId = `rv:${p.date} ${p.time}|${p.description}|${p.amount}|${p.balance ?? ""}`;
+    if (knownIds.has(importId)) {
+      skipped.repeated++;
+      return;
+    }
+    const income = p.amount > 0;
+    const cents = Math.round(Math.abs(p.amount) * 100) + (income ? -1 : 1) * Math.round(p.fee * 100);
+    if (cents <= 0) return;
+    entries.push({
+      id: `rv-${now}-${i}`,
+      createdAt: now + i,
+      type: income ? "ingreso" : "gasto",
+      amount: cents,
+      category: guessCategory(`${p.type} ${p.description}`, income),
+      note: p.description.slice(0, 60),
+      date: p.date,
+      importId,
+    });
+  });
+  const withBalance = parsed.filter((p) => p.balance != null);
+  const last = withBalance[withBalance.length - 1];
+  const first = withBalance[0];
+  return {
+    entries,
+    balance: last ? { balance: Math.round(last.balance * 100), date: last.date } : null,
+    // Lo que había antes del primer movimiento del extracto (para que el total cuadre con Revolut).
+    opening: first ? { amount: Math.round((first.balance - first.amount + first.fee) * 100), date: first.date } : null,
+    skipped,
+  };
+}
+
+// ---------------------------------------------------------------- Herramientas
+
+/** QR de una red WiFi ("WIFI:T:WPA;S:MiCasa;P:clave;;") → { ssid, password, type } o null. */
+export function parseWifiQr(text) {
+  if (!/^WIFI:/i.test(text)) return null;
+  const fields = {};
+  const re = /([A-Z]+):((?:\\.|[^;\\])*);/gi;
+  let m;
+  while ((m = re.exec(text.slice(5)))) fields[m[1].toUpperCase()] = m[2].replace(/\\(.)/g, "$1");
+  return fields.S == null ? null : { ssid: fields.S, password: fields.P ?? "", type: fields.T || "" };
+}
+
+/** Número entero al azar entre min y max (los dos incluidos), con el generador seguro del navegador. */
+export function randomInt(min, max, rand = (n) => crypto.getRandomValues(new Uint32Array(n))) {
+  const span = max - min + 1;
+  const limit = Math.floor(0x100000000 / span) * span; // sin sesgo
+  let v;
+  do v = rand(1)[0];
+  while (v >= limit);
+  return min + (v % span);
+}

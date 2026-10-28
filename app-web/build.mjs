@@ -5,7 +5,7 @@
 // Necesita esbuild (npx esbuild o node_modules/.bin/esbuild en la carpeta del build).
 import { execFileSync } from "node:child_process";
 import { deflateSync, crc32 } from "node:zlib";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, copyFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +22,16 @@ run(["app.js", "--bundle", "--minify", "--format=esm", "--target=chrome100", `--
 run(["styles.css", "--minify", `--outfile=${join(web, "styles.css")}`, "--log-level=warning"]);
 for (const f of ["index.html", "manifest.webmanifest", "vercel.json"]) copyFileSync(join(here, f), join(web, f));
 for (const f of readdirSync(join(here, "icons"))) copyFileSync(join(here, "icons", f), join(web, "icons", f));
-writeFileSync(join(web, "sw.js"), readFileSync(join(here, "sw.js"), "utf8").replace('"app.js", "logic.js", "charts.js",', '"app.js",'));
+// Cada versión publicada lleva su propio nombre de caché: así el móvil sabe que hay una nueva y la baja entera.
+const version = createHash("sha256")
+  .update(["app.js", "styles.css", "index.html", "manifest.webmanifest"].map((f) => readFileSync(join(web, f))).join("\n"))
+  .digest("hex")
+  .slice(0, 10);
+const sw = readFileSync(join(here, "sw.js"), "utf8")
+  .replace('const VERSION = "dev";', `const VERSION = "${version}";`)
+  .replace('"app.js", "logic.js", "charts.js", "importers.js",', '"app.js",');
+if (!sw.includes(version) || sw.includes('"logic.js"')) throw new Error("sw.js: no se ha podido poner la versión");
+writeFileSync(join(web, "sw.js"), sw);
 writeFileSync(join(web, ".nojekyll"), ""); // GitHub Pages: servir los archivos tal cual
 
 // Página de claude.ai: un solo archivo con el CSS y el JS dentro

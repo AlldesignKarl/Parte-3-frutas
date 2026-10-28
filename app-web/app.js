@@ -1,5 +1,6 @@
 import * as L from "./logic.js";
 import * as C from "./charts.js";
+import { readTable } from "./importers.js";
 
 // ================================================================ Utilidades
 
@@ -44,6 +45,15 @@ const ICON = {
   trophy: "M19,5h-2V3H7v2H5C3.9,5 3,5.9 3,7v1c0,2.55 1.92,4.63 4.39,4.94c0.63,1.5 1.98,2.63 3.61,2.96V19H7v2h10v-2h-4v-3.1c1.63,-0.33 2.98,-1.46 3.61,-2.96C19.08,12.63 21,10.55 21,8V7C21,5.9 20.1,5 19,5zM5,8V7h2v3.82C5.84,10.4 5,9.3 5,8zM19,8c0,1.3 -0.84,2.4 -2,2.82V7h2V8z",
   music: "M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55c-2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z",
   trash: "M6,19c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2V7H6v12zM19,4h-3.5l-1,-1h-5l-1,1H5v2h14V4z",
+  home: "M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z",
+  wallet: "M21,18v1c0,1.1 -0.9,2 -2,2H5c-1.11,0 -2,-0.9 -2,-2V5c0,-1.1 0.89,-2 2,-2h14c1.1,0 2,0.9 2,2v1h-9c-1.11,0 -2,0.9 -2,2v8c0,1.1 0.89,2 2,2h9zM12,16h10V8H12v8zM16,13.5c-0.83,0 -1.5,-0.67 -1.5,-1.5s0.67,-1.5 1.5,-1.5 1.5,0.67 1.5,1.5 -0.67,1.5 -1.5,1.5z",
+  piggy: "M19.83,7.5l-2.27,-2.27c0.07,-0.42 0.18,-0.81 0.32,-1.15C17.96,3.9 18,3.71 18,3.5C18,2.67 17.33,2 16.5,2c-1.64,0 -3.09,0.79 -4,2l-5,0C4.46,4 2,6.46 2,9.5S4.5,21 4.5,21l5.5,0v-2h2v2l5.5,0l1.68,-5.59L22,14.47V7.5H19.83zM13,9H8V7h5V9zM16,11c-0.55,0 -1,-0.45 -1,-1c0,-0.55 0.45,-1 1,-1s1,0.45 1,1C17,10.55 16.55,11 16,11z",
+  cake: "M12,6c1.11,0 2,-0.9 2,-2 0,-0.38 -0.1,-0.73 -0.29,-1.03L12,0l-1.71,2.97c-0.19,0.3 -0.29,0.65 -0.29,1.03 0,1.1 0.9,2 2,2zM16.6,15.99l-1.07,-1.07 -1.08,1.07c-1.3,1.3 -3.58,1.31 -4.89,0l-1.07,-1.07 -1.09,1.07C6.75,16.64 5.88,17 4.96,17c-0.73,0 -1.4,-0.23 -1.96,-0.61L3,21c0,0.55 0.45,1 1,1h16c0.55,0 1,-0.45 1,-1v-4.61c-0.56,0.38 -1.23,0.61 -1.96,0.61 -0.92,0 -1.79,-0.36 -2.44,-1.01zM18,9h-5L13,7h-2v2L6,9c-1.66,0 -3,1.34 -3,3v1.54c0,1.08 0.88,1.96 1.96,1.96 0.52,0 1.02,-0.2 1.38,-0.57l2.14,-2.13 2.13,2.13c0.74,0.74 2.03,0.74 2.77,0l2.14,-2.13 2.13,2.13c0.37,0.37 0.86,0.57 1.38,0.57 1.08,0 1.96,-0.88 1.96,-1.96L21,12c0.01,-1.66 -1.33,-3 -2.99,-3z",
+  flashlight: "M6,2h12v3H6zM6,7v1l2,3v11h8V11l2,-3V7H6zM12,15.5c-0.83,0 -1.5,-0.67 -1.5,-1.5s0.67,-1.5 1.5,-1.5 1.5,0.67 1.5,1.5 -0.67,1.5 -1.5,1.5z",
+  qr: "M9.5,6.5v3h-3v-3H9.5M11,5H5v6h6V5L11,5zM9.5,14.5v3h-3v-3H9.5M11,13H5v6h6V13L11,13zM17.5,6.5v3h-3v-3H17.5M19,5h-6v6h6V5L19,5zM13,13h1.5v1.5H13V13zM14.5,14.5H16V16h-1.5V14.5zM16,13h1.5v1.5H16V13zM13,16h1.5v1.5H13V16zM14.5,17.5H16V19h-1.5V17.5zM16,16h1.5v1.5H16V16zM17.5,14.5H19V16h-1.5V14.5zM17.5,17.5H19V19h-1.5V17.5zM22,7h-2V4h-3V2h5V7zM22,22v-5h-2v3h-3v2H22zM2,22h5v-2H4v-3H2V22zM2,2v5h2V4h3V2H2z",
+  flag: "M14.4,6L14,4H5v17h2v-7h5.6l0.4,2h7V6z",
+  dice: "M19,3H5C3.9,3 3,3.9 3,5v14c0,1.1 0.9,2 2,2h14c1.1,0 2,-0.9 2,-2V5C21,3.9 20.1,3 19,3zM7.5,18C6.67,18 6,17.33 6,16.5S6.67,15 7.5,15S9,15.67 9,16.5S8.33,18 7.5,18zM7.5,9C6.67,9 6,8.33 6,7.5S6.67,6 7.5,6S9,6.67 9,7.5S8.33,9 7.5,9zM12,13.5c-0.83,0 -1.5,-0.67 -1.5,-1.5s0.67,-1.5 1.5,-1.5s1.5,0.67 1.5,1.5S12.83,13.5 12,13.5zM16.5,18c-0.83,0 -1.5,-0.67 -1.5,-1.5s0.67,-1.5 1.5,-1.5s1.5,0.67 1.5,1.5S17.33,18 16.5,18zM16.5,9C15.67,9 15,8.33 15,7.5S15.67,6 16.5,6S18,6.67 18,7.5S17.33,9 16.5,9z",
+  apps: "M4,8h4V4H4v4zM10,20h4v-4h-4v4zM4,20h4v-4H4v4zM4,14h4v-4H4v4zM10,14h4v-4h-4v4zM16,4v4h4V4h-4zM10,8h4V4h-4v4zM16,14h4v-4h-4v4zM16,20h4v-4h-4v4z",
 };
 const svg = (name, cls = "") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[name]}"/></svg>`;
 
@@ -118,11 +128,13 @@ const storage = {
 
 const DATA_KEY = "mipanel:datos";
 const state = {
-  tab: storage.get("mipanel:pestana", "estado"),
+  tab: storage.get("mipanel:pestana", "inicio"),
   tasks: [],
   grades: [],
   focus: {}, // minutos de foco por día: { "2026-10-26": 50 }
   schedule: [], // horario de clases: { id, day (1 = lunes … 7), start "08:30", end "09:25", subject, room }
+  money: L.emptyMoney(), // { entries: [{ id, type "gasto"|"ingreso", amount (céntimos), category, note, date }], goals: [huchas], budget }
+  events: [], // cuentas atrás: { id, name, date, type "cumple"|"evento", emoji }
   scheduleDay: null, // día que se está editando en el horario
   showDone: false,
   selectedSubject: null,
@@ -140,10 +152,19 @@ function loadData() {
   state.grades = Array.isArray(data.grades) ? data.grades : [];
   state.focus = isPlainObject(data.focus) ? data.focus : {};
   state.schedule = Array.isArray(data.schedule) ? data.schedule : [];
+  state.money = validData("money", data.money) ? data.money : L.emptyMoney();
+  state.events = Array.isArray(data.events) ? data.events : [];
 }
 
 const isPlainObject = (v) => v != null && typeof v === "object" && !Array.isArray(v);
-const DATA_KEYS = ["tasks", "grades", "focus", "schedule"];
+const DATA_KEYS = ["tasks", "grades", "focus", "schedule", "money", "events"];
+// Casi todo son listas; el foco (minutos por día) y el dinero son objetos.
+const emptyData = (key) => (key === "focus" ? {} : key === "money" ? L.emptyMoney() : []);
+function validData(key, v) {
+  if (key === "focus") return isPlainObject(v);
+  if (key === "money") return isPlainObject(v) && Array.isArray(v.entries) && Array.isArray(v.goals);
+  return Array.isArray(v);
+}
 
 let persistAsked = false;
 function saveData() {
@@ -153,7 +174,15 @@ function saveData() {
     checkAchievements();
     return;
   }
-  const ok = storage.set(DATA_KEY, { version: 1, tasks: state.tasks, grades: state.grades, focus: state.focus, schedule: state.schedule });
+  const ok = storage.set(DATA_KEY, {
+    version: 1,
+    tasks: state.tasks,
+    grades: state.grades,
+    focus: state.focus,
+    schedule: state.schedule,
+    money: state.money,
+    events: state.events,
+  });
   if (!ok) toast("No se ha podido guardar en este navegador");
   // Pide al navegador que no borre los datos aunque falte espacio.
   if (!persistAsked && navigator.storage?.persist) {
@@ -167,10 +196,10 @@ function saveData() {
 
 const cloud = {
   docs: null,
-  dirty: { tasks: false, grades: false, focus: false, schedule: false },
-  written: { tasks: null, grades: null, focus: null, schedule: null },
+  dirty: Object.fromEntries(DATA_KEYS.map((k) => [k, false])),
+  written: Object.fromEntries(DATA_KEYS.map((k) => [k, null])),
   writing: false,
-  loaded: { tasks: false, grades: false, focus: false, schedule: false },
+  loaded: Object.fromEntries(DATA_KEYS.map((k) => [k, false])),
 };
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -188,19 +217,20 @@ async function initCloud() {
       grades: db.doc(`${base}/notas`),
       focus: db.doc(`${base}/foco`),
       schedule: db.doc(`${base}/horario`),
+      money: db.doc(`${base}/dinero`),
+      events: db.doc(`${base}/fechas`),
     };
     for (const key of DATA_KEYS) {
       cloud.docs[key].onSnapshot(
         (snap) => {
           if (snap.metadata.hasPendingWrites || cloud.dirty[key] || cloud.writing) return;
-          const empty = key === "focus" ? {} : [];
+          const empty = emptyData(key);
           const items = snap.exists ? snap.data().items : empty;
-          const valid = key === "focus" ? isPlainObject(items) : Array.isArray(items);
-          const text = JSON.stringify(valid ? items : empty);
+          const text = JSON.stringify(validData(key, items) ? items : empty);
           cloud.written[key] = text;
           if (text !== JSON.stringify(state[key])) {
             state[key] = JSON.parse(text);
-            if (state.tab !== "estado") render();
+            render();
           }
           if (!cloud.loaded[key]) {
             cloud.loaded[key] = true;
@@ -308,7 +338,8 @@ function render() {
   if (state.tab === "tareas") renderTasks();
   else if (state.tab === "notas") renderGrades();
   else if (state.tab === "foco") renderFocus();
-  else renderStatus();
+  else if (state.tab === "dinero") renderMoney();
+  else renderHome();
 }
 
 // ================================================================ Estado: batería
@@ -327,14 +358,32 @@ async function initBattery() {
   try {
     const b = await navigator.getBattery();
     status.battery = b;
-    ["levelchange", "chargingchange", "chargingtimechange", "dischargingtimechange"].forEach((e) =>
-      b.addEventListener(e, updateBattery)
-    );
-    updateBattery();
+    ["levelchange", "chargingchange"].forEach((e) => b.addEventListener(e, onBattery));
+    onBattery();
   } catch {
     status.batteryBlocked = true;
     updateBattery();
   }
+}
+
+// El tiempo que da Chrome no es fiable (puede decir "110 días"): la app lo calcula con lo que
+// ve subir o bajar la batería mientras está abierta.
+function onBattery() {
+  const b = status.battery;
+  status.battLog = L.addBatterySample(status.battLog ?? storage.get(BATT_KEY, null), b.level, b.charging, Date.now());
+  storage.set(BATT_KEY, status.battLog);
+  updateBattery();
+  updateHome();
+}
+
+/** Nivel, si está cargando y cuánto falta (null si aún no se sabe). */
+function batteryInfo() {
+  const b = status.battery;
+  if (!b) return null;
+  const pct = Math.round(b.level * 100);
+  const full = b.charging && pct >= 100;
+  const est = full ? null : L.batteryEstimate(status.battLog, b.level, b.charging);
+  return { pct, full, charging: b.charging, est };
 }
 
 function batteryColor(pct) {
@@ -360,14 +409,8 @@ function updateBattery() {
     }</p>`;
     return;
   }
-  const pct = Math.round(b.level * 100);
-  const full = b.charging && pct >= 100;
+  const { pct, full, est } = batteryInfo();
   const [c1, c2] = batteryGradient(pct);
-  // El tiempo que da Chrome no es fiable (puede decir "110 días"): la app lo calcula con lo que
-  // ve subir o bajar la batería mientras está abierta.
-  status.battLog = L.addBatterySample(status.battLog ?? storage.get(BATT_KEY, null), b.level, b.charging, Date.now());
-  storage.set(BATT_KEY, status.battLog);
-  const est = full ? null : L.batteryEstimate(status.battLog, b.level, b.charging);
   let time = "";
   if (full) time = "";
   else if (est != null && b.charging) time = `Al 100 % en ≈ ${L.fmtDuration(est)}`;
@@ -456,7 +499,15 @@ async function loadWeather({ relocate = false } = {}) {
   updateWeather();
 }
 
+/** Si el tiempo es de hace más de media hora, se actualiza solo (con el sitio de la última vez: sin pedir la ubicación). */
+function maybeRefreshWeather() {
+  const w = weather.data;
+  if (ARTIFACT || !w || weather.state === "loading" || navigator.onLine === false) return;
+  if (Date.now() - w.at > 30 * 60000 && Date.now() - weather.tried > 10 * 60000) loadWeather();
+}
+
 function updateWeather() {
+  updateHome();
   const box = $("#weather-body");
   if (!box) return;
   const w = weather.data;
@@ -494,9 +545,6 @@ function updateWeather() {
     </div>
     <div class="row mt12"><span class="small grow">${weather.state === "loading" ? "Actualizando…" : `Actualizado a las ${L.fmtTime(w.at)}`}</span>
       <button type="button" class="btn text slim" data-action="weather-refresh" ${weather.state === "loading" ? "disabled" : ""}>Actualizar</button></div>`;
-  // Si es de hace más de media hora, se actualiza solo (con el sitio de la última vez: sin pedir la ubicación).
-  const stale = Date.now() - w.at > 30 * 60000 && Date.now() - weather.tried > 10 * 60000;
-  if (weather.state !== "loading" && stale && navigator.onLine !== false) loadWeather();
 }
 
 // ================================================================ Estado: cascos (Web Bluetooth)
@@ -627,6 +675,7 @@ async function autoPing() {
 
 
 function updateNetwork() {
+  updateHome();
   const box = $("#net-body");
   if (!box) return;
   const n = connectionInfo();
@@ -850,7 +899,7 @@ const PAGES_SETTINGS = "https://github.com/AlldesignKarl/Parte-3-frutas/settings
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   installPrompt = e;
-  if (state.tab === "estado") render();
+  if (state.tab === "inicio") render();
 });
 window.addEventListener("appinstalled", () => {
   installPrompt = null;
@@ -914,23 +963,179 @@ function installBanner() {
     <button class="icon-btn" data-action="hide-install" aria-label="Ocultar">${svg("close")}</button></div>`;
 }
 
-// ================================================================ Pantalla Estado
+// ================================================================ Pantalla Inicio (panel de control)
 
-function renderStatus() {
-  $("#view").innerHTML = `
-    ${topbar("Mi móvil")}
-    ${installBanner()}
+function greeting() {
+  const h = new Date().getHours();
+  return h >= 6 && h < 14 ? "Buenos días" : h >= 14 && h < 21 ? "Buenas tardes" : "Buenas noches";
+}
+
+const TOOLS = [
+  { id: "torch", icon: "flashlight", label: "Linterna", camera: true },
+  { id: "qr", icon: "qr", label: "Leer QR", camera: true },
+  { id: "stopwatch", icon: "timer", label: "Crono" },
+  { id: "dice", icon: "dice", label: "Dados" },
+  { id: "speed", icon: "speed", label: "Velocidad" },
+];
+
+function renderHome() {
+  const header = topbar(greeting(), `<button class="icon-btn" data-action="home-menu" aria-label="Más opciones">${svg("more")}</button>`);
+  // En claude.ai la página no puede usar la cámara: ahí no salen la linterna ni el escáner.
+  const tools = TOOLS.filter((t) => !(ARTIFACT && t.camera));
+  $("#view").innerHTML = `${header}${installBanner()}
     <div class="${stackClass()}">
+      <div class="tiles" id="tiles">${homeTiles()}</div>
+      <section class="card">${cardHead("apps", "Herramientas")}
+        <div class="tools">${tools.map((t) => `
+          <button type="button" class="tool${t.id === "torch" && torch.on ? " on" : ""}" data-action="tool" data-tool="${t.id}">
+            <span class="tool-icon">${svg(t.icon)}</span><span>${t.label}</span></button>`).join("")}</div>
+      </section>
+    </div>`;
+  autoPing();
+  maybeRefreshWeather();
+}
+
+function updateHome() {
+  const box = state.tab === "inicio" && $("#tiles");
+  if (box) box.innerHTML = homeTiles();
+}
+
+function tile({ id, action, go, color, icon, label, value, sub, wide = false, visual = "", valueColor = "" }) {
+  return `<button type="button" class="tile${wide ? " wide" : ""}" id="tile-${id}" data-action="${action}"${go ? ` data-go="${go}"` : ""} style="--tile:${color}">
+    <span class="tile-head">${svg(icon)}<span>${label}</span></span>
+    <span class="tile-main">${visual}<span class="tile-value${longValue(value) ? " long" : ""}"${valueColor ? ` style="color:${valueColor}"` : ""}>${value}</span></span>
+    <span class="tile-sub">${sub}</span></button>`;
+}
+
+/** Textos largos (el nombre de una asignatura) van un poco más pequeños para que quepan. */
+const longValue = (html) => html.replace(/<[^>]*>/g, "").replace(/&[a-z#0-9]+;/g, "x").length > 9;
+
+function homeTiles() {
+  const day = today();
+  const out = [];
+
+  // Batería
+  const bi = batteryInfo();
+  if (bi) {
+    const color = bi.charging || bi.full ? "var(--good)" : batteryColor(bi.pct);
+    const sub = bi.full ? "Carga completa"
+      : bi.est != null ? (bi.charging ? `100 % en ≈ ${L.fmtDuration(bi.est)}` : `Te queda ≈ ${L.fmtDuration(bi.est)}`)
+      : bi.charging ? "Cargando" : "Calculando lo que dura…";
+    out.push(tile({ id: "battery", action: "device", color, icon: bi.charging ? "bolt" : "battery", label: "Batería",
+      value: `${bi.pct}<small>%</small>`, sub, visual: `<span class="tile-ring">${ring(bi.pct, `--c1:${color}`)}</span>` }));
+  } else {
+    out.push(tile({ id: "battery", action: "device", color: "var(--muted)", icon: "battery", label: "Batería", value: "—",
+      sub: status.batteryBlocked || !navigator.getBattery ? "Ábrela con Chrome" : "Leyendo…" }));
+  }
+
+  // El tiempo (no en claude.ai)
+  if (!ARTIFACT) {
+    const w = weather.data;
+    if (w) {
+      const info = L.weatherInfo(w.code, w.isDay);
+      out.push(tile({ id: "weather", action: "device", color: "var(--cyan)", icon: "sun", label: "El tiempo",
+        value: `${Math.round(w.temp)}<small>°</small>`, sub: `${info.label}${w.today.rain ? ` · lluvia ${w.today.rain} %` : ""}`,
+        visual: `<span class="tile-emoji">${info.icon}</span>` }));
+    } else {
+      out.push(tile({ id: "weather", action: "weather", color: "var(--cyan)", icon: "sun", label: "El tiempo",
+        value: weather.state === "loading" ? "…" : "—", sub: weather.state === "loading" ? "Buscando…" : "Toca para verlo" }));
+    }
+  }
+
+  // Conexión
+  const n = connectionInfo();
+  const p = status.ping;
+  const q = p?.ok ? pingQuality(p.ms) : null;
+  const names = { wifi: "WiFi", mobile: "Datos móviles", ethernet: "Cable", unknown: "Internet", none: "Sin conexión" };
+  const netColor = n.kind === "none" ? "var(--bad)" : q ? q.color : p ? "var(--warning)" : "var(--accent)";
+  out.push(tile({ id: "net", action: "device", color: netColor, icon: "wifi", label: "Conexión", valueColor: netColor,
+    value: n.kind === "none" ? "Sin red" : q ? q.label : p ? "Inestable" : "…",
+    sub: n.kind === "none" ? "No hay internet" : p?.ok ? `${names[n.kind]} · ${p.ms} ms` : p ? "Internet no responde bien" : "Comprobando…" }));
+
+  // Dinero
+  const t = L.moneyTotals(state.money);
+  const month = L.monthSummary(state.money.entries, L.monthOf(day));
+  out.push(tile({ id: "money", action: "go", go: "dinero", color: "var(--lime)", icon: "wallet", label: "Dinero",
+    value: state.money.entries.length ? moneyText(t.total) : "—",
+    sub: state.money.entries.length ? `Este mes −${L.fmtMoney(month.spent, { short: true })}` : "Apunta lo que tienes" }));
+
+  // Clase de ahora
+  if (!state.schedule.length) {
+    out.push(tile({ id: "class", action: "schedule", color: "var(--violet)", icon: "school", label: "Clase", value: "Horario", sub: "Toca para ponerlo" }));
+  } else {
+    const minute = nowMinute();
+    const { current, next } = L.classStatus(state.schedule, L.isoWeekday(day), minute);
+    let value = "Sin clase";
+    let sub = "";
+    if (current) {
+      value = esc(current.subject);
+      sub = `Ahora · quedan ${fmtMinutes(L.toMinutes(current.end) - minute)}`;
+    } else if (next) {
+      value = esc(next.subject);
+      sub = `A las ${L.fmtHour(next.start)}`;
+    } else {
+      const after = L.nextSchoolDay(state.schedule, L.isoWeekday(day));
+      sub = after ? `${after.offset === 1 ? "Mañana" : capitalize(L.WEEKDAYS[after.day - 1])} a las ${L.fmtHour(after.first.start)}` : "";
+    }
+    out.push(tile({ id: "class", action: "go", go: "tareas", color: "var(--violet)", icon: "school", label: current ? "Ahora en clase" : "Clase", value, sub }));
+  }
+
+  // Estudio de hoy
+  const pending = L.pendingSorted(state.tasks);
+  const ov = L.dayOverview(state.tasks, day);
+  const exam = L.upcomingExams(state.tasks, day)[0];
+  out.push(tile({ id: "study", action: "go", go: "tareas", color: "var(--pink)", icon: "book", label: "Estudio hoy",
+    value: ov.goalToday ? `${ov.pagesToday}<small>/${ov.goalToday} págs</small>` : pending.length ? `${pending.length}<small> ${pending.length === 1 ? "tarea" : "tareas"}</small>` : "Libre",
+    sub: exam ? `Examen ${L.relativeDay(L.daysBetween(day, exam.examDate))}` : pending.length ? "pendientes" : "Sin tareas pendientes" }));
+
+  // Foco
+  const focusToday = state.focus[day] || 0;
+  const streak = L.studyStreak(state.tasks, day, state.focus);
+  out.push(tile({ id: "focus", action: "go", go: "foco", color: "var(--mint)", icon: "timer", label: timer.running ? "Foco en marcha" : "Foco",
+    value: timer.running ? fmtClock(timeLeft()) : fmtMinutes(focusToday),
+    sub: timer.running ? (timer.phase === "work" ? "Concentración" : "Descanso") : streak ? `🔥 ${streak} ${streak === 1 ? "día" : "días"} seguidos` : "hoy" }));
+
+  // Notas
+  const subjects = L.bySubject(state.grades);
+  const avg = L.overallAverage(subjects);
+  out.push(tile({ id: "grades", action: "go", go: "notas", color: "var(--amber)", icon: "chart", label: "Media",
+    value: avg == null ? "—" : L.fmtGrade(avg), sub: avg == null ? "Apunta tus notas" : L.gradeLabel(avg) }));
+
+  // Próxima fecha (ancha)
+  const nextEvent = L.upcomingEvents(state.events, day)[0];
+  out.push(tile({ id: "events", action: "events", color: "var(--coral)", icon: "cake", label: "Cuenta atrás", wide: true,
+    value: nextEvent ? `${nextEvent.event.emoji || "📅"} ${esc(nextEvent.event.name)}` : "Cumpleaños y fechas",
+    sub: nextEvent ? `${L.countdownLabel(nextEvent.days)}${nextEvent.turns ? ` · cumple ${nextEvent.turns}` : ""} · ${L.fmtDateShort(nextEvent.date)}` : "Toca para añadir cumpleaños, viajes, conciertos…" }));
+  return out.join("");
+}
+
+/** "67,50 €" con los céntimos más pequeños (para números grandes). */
+function moneyText(cents) {
+  const [int, dec] = L.fmtMoney(cents).replace(" €", "").split(",");
+  return `${int}<small>,${dec} €</small>`;
+}
+
+// ================================================================ Mi móvil (detalle: batería, tiempo, cascos, conexión…)
+
+function openDeviceSheet(focus = "") {
+  const root = overlay(`
+    <div class="sheet live-actions" role="dialog" aria-modal="true" aria-labelledby="dev-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="dev-title">Mi móvil</h2>
+      </div>
+      <div class="sheet-body stack still">
       <section class="card">${cardHead("battery", "Batería")}<div id="battery-body"></div></section>
       ${ARTIFACT ? "" : `<section class="card">${cardHead("sun", "El tiempo")}<div id="weather-body"></div></section>`}
       <section class="card">${cardHead("headphones", "Cascos")}<div id="bt-body"></div></section>
-      <section class="card">${cardHead("wifi", "Conexión")}<div id="net-body"></div>
+      <section class="card" id="net-card">${cardHead("wifi", "Conexión")}<div id="net-body"></div>
         <hr class="divider">
         <div class="row" style="margin-bottom:12px">${svg("speed").replace("<svg", '<svg style="width:22px;height:22px;fill:var(--accent)"')}<span class="strong">Test de velocidad</span></div>
         <div id="speed-body"></div>
       </section>
       <section class="card">${cardHead("phone", "Este móvil")}<div id="device-body"></div></section>
-    </div>`;
+      </div>
+    </div>`);
   updateBattery();
   updateWeather();
   updateBt();
@@ -938,6 +1143,8 @@ function renderStatus() {
   updateSpeed();
   updateDevice();
   autoPing();
+  maybeRefreshWeather();
+  if (focus) $(`#${focus}`, root)?.closest(".card")?.scrollIntoView({ block: "start" });
 }
 
 // ================================================================ Pantalla Tareas
@@ -1786,6 +1993,921 @@ function openGradeEditor(grade, presetSubject = "") {
   });
 }
 
+// ================================================================ Pantalla Dinero
+
+const monthName = (iso) => new Intl.DateTimeFormat("es-ES", { month: "long" }).format(L.isoToDate(iso));
+let showAllMoney = false;
+let selectedMoneyDay = null;
+
+/** "67,50 €" grande: los euros en claro y ",50 €" en el color de la sección. */
+function moneyHero(cents) {
+  const [int, dec] = L.fmtMoney(cents).replace(" €", "").split(",");
+  return `${int}<span class="dec">,${dec}</span><span class="cur">€</span>`;
+}
+
+function renderMoney() {
+  const header = topbar("Dinero", `<button class="icon-btn" data-action="money-menu" aria-label="Más opciones">${svg("more")}</button>`);
+  if (state.loading) {
+    $("#view").innerHTML = `${header}<p class="loading">Cargando…</p>`;
+    return;
+  }
+  const fab = `<button class="fab" data-action="new-money" aria-label="Apuntar un gasto o un ingreso">${svg("add")}Apuntar</button>`;
+  const m = state.money;
+  if (!m.entries.length && !m.goals.length) {
+    $("#view").innerHTML = `${header}<div class="empty"><div class="glow-icon">${svg("wallet")}</div><h2>Controla tu dinero</h2>
+      <p class="hint">Empieza apuntando cuánto tienes ahora. Luego ve apuntando lo que gastas y lo que te dan: verás en qué se te va y cuánto te queda.</p>
+      <button class="btn mt16" data-action="money-start">¿Cuánto tienes ahora?</button>
+      <button class="btn outline mt12" data-action="revolut">Meter un extracto de Revolut</button></div>${fab}`;
+    return;
+  }
+  const day = today();
+  const t = L.moneyTotals(m);
+  const month = L.monthSummary(m.entries, L.monthOf(day));
+  let html = `${header}<div class="${stackClass()}">`;
+
+  // Lo que tienes, este mes y el límite
+  let budget = `<button type="button" class="btn text slim mt12" data-action="budget">${svg("add")}Ponerte un límite de gasto al mes</button>`;
+  if (m.budget) {
+    const pct = (month.spent / m.budget) * 100;
+    const left = m.budget - month.spent;
+    const color = pct >= 100 ? "var(--bad)" : pct >= 80 ? "var(--warning)" : "var(--good)";
+    budget = `<div class="mt16"><div class="row"><span class="strong grow">Límite de ${monthName(day)}: ${L.fmtMoney(m.budget, { short: true })}</span>
+        <button type="button" class="btn text slim" data-action="budget">Cambiar</button></div>
+      ${meter(pct, { color, cls: "mt8" })}
+      <p class="small mt8" style="margin:8px 0 0;${left < 0 ? "color:var(--bad)" : ""}">${left >= 0 ? `Te quedan ${L.fmtMoney(left)} para lo que queda de mes` : `Te has pasado ${L.fmtMoney(-left)}`}</p></div>`;
+  }
+  const rv = m.revolut;
+  html += `<section class="card">
+      <p class="eyebrow">Tienes</p>
+      <div class="avg mt8"><span class="hero${t.total < 0 ? " neg" : ""}">${moneyHero(t.total)}</span></div>
+      ${t.saved ? `<p class="hint mt8">${L.fmtMoney(t.available)} libres · ${L.fmtMoney(t.saved)} en huchas</p>` : ""}
+      ${rv ? `<p class="small mt8">En Revolut: <b>${L.fmtMoney(rv.balance)}</b> según el extracto del ${L.fmtDateShort(rv.date)}</p>` : ""}
+      <div class="stats2">
+        <div class="stat"><span>Gastado en ${monthName(day)}</span><b>${L.fmtMoney(month.spent)}</b><em>${month.byCat[0] ? `Sobre todo en ${month.byCat[0].cat.label.toLowerCase()}` : "nada aún"}</em></div>
+        <div class="stat"><span>Te ha entrado</span><b>${L.fmtMoney(month.income)}</b><em>este mes</em></div>
+      </div>
+      ${budget}
+    </section>`;
+
+  // En qué se te va
+  if (month.byCat.length) {
+    html += `<section class="card">${cardHead("chart", `En qué gastas en ${monthName(day)}`)}<div class="${chartClass()}" id="money-cats"></div></section>`;
+  }
+
+  // Últimos 7 días
+  const days = L.spendByDay(m.entries, 7, day);
+  const sel = days.find((d) => d.date === selectedMoneyDay);
+  html += `<section class="card">${cardHead("trend", "Lo que gastas cada día")}
+      <div class="${chartClass()}" id="money-days"></div>
+      <p class="chart-detail">${sel ? `<b>${L.fmtDateShort(sel.date)}</b>: ${sel.value ? `gastaste ${L.fmtMoney(sel.value)}` : "no gastaste nada"}` : `Esta semana: <b>${L.fmtMoney(days.reduce((s, d) => s + d.value, 0))}</b>. Toca un día para verlo.`}</p>
+    </section>`;
+
+  // Huchas
+  html += `<section class="card">${cardHead("piggy", "Huchas", `<button type="button" class="btn text slim" data-action="new-goal">Nueva</button>`)}
+      ${m.goals.length ? `<div class="goals">${m.goals.map(goalRow).join("")}</div>`
+        : `<p class="hint">Ahorra para algo que quieras (unos cascos, un viaje…): mete dinero poco a poco y verás cuánto te falta.</p>`}
+    </section>`;
+
+  // Movimientos
+  const groups = L.entriesByDay(m.entries);
+  let shown = 0;
+  let list = "";
+  for (const g of groups) {
+    if (!showAllMoney && shown >= 25) break;
+    list += `<p class="day-label">${dayLabel(g.date)}</p>${g.items.map(entryRow).join("")}`;
+    shown += g.items.length;
+  }
+  html += `<section class="card">${cardHead("wallet", "Movimientos", `<span class="pill" style="--pill:var(--muted)">${m.entries.length}</span>`)}
+      ${list || `<p class="hint">Aún no has apuntado nada.</p>`}
+      ${!showAllMoney && shown < m.entries.length ? `<button type="button" class="btn text block" data-action="money-more">Ver todos</button>` : ""}
+    </section>`;
+  html += `</div>${fab}`;
+  $("#view").innerHTML = html;
+
+  const cats = $("#money-cats");
+  if (cats) {
+    cats.innerHTML = C.hbars(month.byCat.map((x) => ({ label: `${x.cat.icon} ${x.cat.label}`, value: x.amount })), {
+      width: Math.max(260, cats.clientWidth || 320),
+      fmt: (v) => L.fmtMoney(v, { short: true }),
+      label: "Gastos por categoría: ",
+    });
+  }
+  const box = $("#money-days");
+  box.innerHTML = C.dayColumns(days, {
+    width: Math.max(260, box.clientWidth || 320),
+    unit: "",
+    selected: selectedMoneyDay,
+    hitAttr: "data-moneyday",
+    fmt: (v) => L.fmtMoney(v, { short: true }),
+  });
+}
+
+function dayLabel(iso) {
+  const d = L.daysBetween(today(), iso);
+  return d === 0 || d === -1 ? capitalize(L.relativeDay(d)) : capitalize(L.fmtDateShort(iso));
+}
+
+function entryRow(e, interactive = true) {
+  const cat = L.moneyCat(e.type, e.category);
+  const income = e.type === "ingreso";
+  const tag = interactive ? "button" : "div";
+  return `<${tag}${interactive ? ' type="button"' : ""} class="entry" ${interactive ? `data-action="edit-money" data-id="${e.id}"` : ""}>
+      <span class="entry-icon" aria-hidden="true">${cat.icon}</span>
+      <span class="grow"><span class="strong">${esc(e.note || cat.label)}</span>${e.note ? `<span class="small">${cat.label}${e.importId ? " · Revolut" : ""}</span>` : ""}</span>
+      <span class="entry-amount${income ? " in" : ""}">${L.fmtMoney(income ? e.amount : -e.amount, { sign: true })}</span>
+    </${tag}>`;
+}
+
+function goalRow(g) {
+  const pct = g.target ? Math.min(100, (g.saved / g.target) * 100) : 0;
+  const done = g.saved >= g.target;
+  return `<div class="goal${done ? " done" : ""}">
+      <div class="ring-wrap sm">${ring(pct, done ? "--c1:var(--good)" : "")}<div class="center goal-emoji">${esc(g.emoji || "🎯")}</div></div>
+      <div class="grow">
+        <div class="row"><span class="strong grow">${esc(g.name)}</span>
+          <button type="button" class="icon-btn ghost small-icon" data-action="edit-goal" data-id="${g.id}" aria-label="Editar hucha">${svg("more")}</button></div>
+        <div class="small">${L.fmtMoney(g.saved)} de ${L.fmtMoney(g.target)}${done ? " · ¡Conseguido!" : ` · faltan ${L.fmtMoney(g.target - g.saved)}`}</div>
+        <div class="goal-actions">
+          <button type="button" class="btn tonal slim" data-action="goal-money" data-id="${g.id}">Meter o sacar</button>
+          ${done ? `<button type="button" class="btn slim" data-action="goal-bought" data-id="${g.id}">Ya lo he comprado</button>` : ""}
+        </div>
+      </div>
+    </div>`;
+}
+
+/** Sólo cifras y una coma: "12,50". */
+function amountInput(el) {
+  el.addEventListener("input", () => {
+    let v = el.value.replace(/[^\d.,]/g, "").replace(".", ",");
+    const i = v.indexOf(",");
+    if (i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/,/g, "").slice(0, 2);
+    el.value = v.slice(0, 9);
+  });
+}
+const centsToInput = (c) => (c / 100).toFixed(2).replace(".", ",").replace(/,00$/, "");
+
+function openMoneyEditor(entry, preset = {}) {
+  let type = entry?.type || preset.type || "gasto";
+  let category = entry?.category || preset.category || (type === "ingreso" ? "paga" : "comida");
+  const root = overlay(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mo-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="mo-title">${entry ? "Editar movimiento" : "Apuntar"}</h2>
+        <button class="btn" type="submit" form="money-form" id="save">Guardar</button>
+      </div>
+      <form id="money-form" novalidate>
+        <div class="segmented money-type">
+          <button type="button" data-type="gasto">Gasto</button><button type="button" data-type="ingreso">Ingreso</button>
+        </div>
+        <label class="amount-field"><span class="sr-only">Importe</span>
+          <input name="amount" inputmode="decimal" placeholder="0" autocomplete="off" value="${entry ? centsToInput(entry.amount) : ""}"><b>€</b></label>
+        <p class="field-label">Categoría</p>
+        <div class="cat-grid" id="cats"></div>
+        <label class="field"><span>Concepto (opcional)</span>
+          <input name="note" maxlength="60" placeholder="Ej.: Bocadillo, entradas del cine…" value="${esc(entry?.note ?? preset.note ?? "")}" autocomplete="off"></label>
+        <label class="field"><span>Fecha</span><input name="date" type="date" value="${entry?.date || today()}"></label>
+        ${entry ? `<button type="button" class="btn danger block" id="del">Borrar este movimiento</button>` : ""}
+      </form>
+    </div>`);
+  const form = $("#money-form", root);
+  const f = form.elements;
+  amountInput(f.amount);
+  const draw = () => {
+    root.querySelectorAll("[data-type]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.type === type));
+    const cats = type === "ingreso" ? L.INCOME_CATS : L.EXPENSE_CATS;
+    if (!cats.some((c) => c.id === category)) category = cats[0].id;
+    $("#cats", root).innerHTML = cats.map((c) => `<button type="button" data-cat="${c.id}" aria-pressed="${c.id === category}"><span>${c.icon}</span>${c.label}</button>`).join("");
+    $("#save", root).disabled = L.parseAmount(f.amount.value) == null || !f.date.value;
+    form.classList.toggle("is-income", type === "ingreso");
+  };
+  root.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-type]");
+    const c = e.target.closest("[data-cat]");
+    if (t) type = t.dataset.type;
+    if (c) category = c.dataset.cat;
+    if (t || c) draw();
+  });
+  f.amount.addEventListener("input", draw);
+  f.date.addEventListener("input", draw);
+  draw();
+  if (!entry) f.amount.focus();
+  $("#del", root)?.addEventListener("click", () => {
+    closeOverlay(root);
+    state.money = { ...state.money, entries: state.money.entries.filter((x) => x.id !== entry.id) };
+    saveData();
+    render();
+    toast("Movimiento borrado", "Deshacer", () => {
+      state.money = { ...state.money, entries: [...state.money.entries, entry] };
+      saveData();
+      render();
+    }, 6000);
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if ($("#save", root).disabled) return;
+    const values = { type, amount: L.parseAmount(f.amount.value), category, note: f.note.value.trim(), date: f.date.value };
+    closeOverlay(root);
+    const entries = entry
+      ? state.money.entries.map((x) => (x.id === entry.id ? { ...x, ...values } : x))
+      : [...state.money.entries, { id: uid(), createdAt: Date.now(), ...values }];
+    state.money = { ...state.money, entries };
+    animateNext = !entry;
+    saveData();
+    render();
+    if (!entry) toast(`${values.type === "ingreso" ? "Ingreso" : "Gasto"} apuntado: ${L.fmtMoney(values.amount)}`);
+  });
+}
+
+const GOAL_EMOJIS = ["🎧", "📱", "👟", "🎮", "💻", "✈️", "🎁", "🛹", "🎸", "🎟️"];
+
+function openGoalEditor(goal) {
+  let emoji = goal?.emoji || GOAL_EMOJIS[0];
+  const root = overlay(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="go-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="go-title">${goal ? "Editar hucha" : "Nueva hucha"}</h2>
+        <button class="btn" type="submit" form="goal-form" id="save">Guardar</button>
+      </div>
+      <form id="goal-form" novalidate>
+        <label class="field"><span>¿Para qué ahorras?</span>
+          <input name="name" maxlength="40" placeholder="Ej.: Cascos nuevos" value="${esc(goal?.name || "")}" autocomplete="off"></label>
+        <div class="emoji-row" id="emojis"></div>
+        <label class="field"><span>¿Cuánto cuesta?</span>
+          <input name="target" inputmode="decimal" placeholder="Ej.: 60" value="${goal ? centsToInput(goal.target) : ""}" autocomplete="off"></label>
+        ${goal ? `<button type="button" class="btn danger block" id="del">Borrar la hucha</button>
+          <p class="small mt8">Si la borras, lo que tenías metido vuelve a contar como dinero libre.</p>` : ""}
+      </form>
+    </div>`);
+  const form = $("#goal-form", root);
+  const f = form.elements;
+  amountInput(f.target);
+  const draw = () => {
+    $("#emojis", root).innerHTML = GOAL_EMOJIS.map((x) => `<button type="button" data-emoji="${x}" aria-pressed="${x === emoji}">${x}</button>`).join("");
+    $("#save", root).disabled = !f.name.value.trim() || L.parseAmount(f.target.value) == null;
+  };
+  $("#emojis", root).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-emoji]");
+    if (!b) return;
+    emoji = b.dataset.emoji;
+    draw();
+  });
+  f.name.addEventListener("input", draw);
+  f.target.addEventListener("input", draw);
+  draw();
+  if (!goal) f.name.focus();
+  $("#del", root)?.addEventListener("click", () => {
+    closeOverlay(root);
+    state.money = { ...state.money, goals: state.money.goals.filter((x) => x.id !== goal.id) };
+    saveData();
+    render();
+    toast("Hucha borrada", "Deshacer", () => {
+      state.money = { ...state.money, goals: [...state.money.goals, goal] };
+      saveData();
+      render();
+    }, 6000);
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if ($("#save", root).disabled) return;
+    const values = { name: f.name.value.trim(), emoji, target: L.parseAmount(f.target.value) };
+    closeOverlay(root);
+    const goals = goal
+      ? state.money.goals.map((x) => (x.id === goal.id ? { ...x, ...values } : x))
+      : [...state.money.goals, { id: uid(), createdAt: Date.now(), saved: 0, ...values }];
+    state.money = { ...state.money, goals };
+    saveData();
+    render();
+  });
+}
+
+function openGoalMoneyDialog(goal) {
+  const free = L.moneyTotals(state.money).available;
+  const root = overlay(`
+    <div class="scrim"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="gm-title">
+      <h2 id="gm-title">${esc(goal.emoji || "🎯")} ${esc(goal.name)}</h2>
+      <p style="margin-top:0">Llevas <b>${L.fmtMoney(goal.saved)}</b> de ${L.fmtMoney(goal.target)}. Tienes libre <b>${L.fmtMoney(free)}</b>.</p>
+      <label class="amount-field small-amount"><span class="sr-only">Cantidad</span><input id="gm-amount" inputmode="decimal" placeholder="0" autocomplete="off"><b>€</b></label>
+      <div class="quick" style="grid-template-columns:repeat(4,1fr)">${[1, 5, 10, 20].map((n) => `<button type="button" data-n="${n}">${n} €</button>`).join("")}</div>
+      <p class="small" id="gm-help" style="min-height:1.4em;margin:10px 0 0"></p>
+      <div class="actions"><button class="btn text" id="gm-out">Sacar</button><button class="btn" id="gm-in">Meter</button></div>
+    </div></div>`);
+  const input = $("#gm-amount", root);
+  amountInput(input);
+  const refresh = () => {
+    const v = L.parseAmount(input.value);
+    $("#gm-in", root).disabled = v == null;
+    $("#gm-out", root).disabled = v == null || v > goal.saved;
+    $("#gm-help", root).textContent = v != null && v > free ? "Ojo: es más de lo que tienes libre." : v != null && v > goal.saved ? "" : "";
+  };
+  root.querySelectorAll("[data-n]").forEach((b) => b.addEventListener("click", () => {
+    input.value = b.dataset.n;
+    refresh();
+  }));
+  input.addEventListener("input", refresh);
+  refresh();
+  input.focus();
+  const apply = (delta) => {
+    closeOverlay(root);
+    state.money = { ...state.money, goals: state.money.goals.map((x) => (x.id === goal.id ? { ...x, saved: Math.max(0, x.saved + delta) } : x)) };
+    saveData();
+    render();
+    const g = state.money.goals.find((x) => x.id === goal.id);
+    if (delta > 0 && g.saved >= g.target && goal.saved < goal.target) {
+      chime();
+      navigator.vibrate?.([120, 80, 220]);
+      toast(`🎉 ¡Ya tienes lo que cuesta ${g.name}!`);
+    }
+  };
+  $("#gm-in", root).addEventListener("click", () => apply(L.parseAmount(input.value)));
+  $("#gm-out", root).addEventListener("click", () => apply(-L.parseAmount(input.value)));
+}
+
+async function goalBought(goal) {
+  if (!(await confirmDialog(`¿Ya tienes ${goal.name}?`, `Se apunta un gasto de ${L.fmtMoney(goal.saved)} y la hucha se cierra.`, "Sí, lo he comprado"))) return;
+  state.money = {
+    ...state.money,
+    goals: state.money.goals.filter((x) => x.id !== goal.id),
+    entries: [...state.money.entries, { id: uid(), createdAt: Date.now(), type: "gasto", amount: goal.saved, category: "otros", note: `${goal.emoji || ""} ${goal.name}`.trim(), date: today() }],
+  };
+  saveData();
+  render();
+  toast(`¡A disfrutarlo! ${goal.emoji || ""}`);
+}
+
+function openBudgetDialog() {
+  const root = overlay(`
+    <div class="scrim"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bu-title">
+      <h2 id="bu-title">Límite de gasto al mes</h2>
+      <p style="margin-top:0">Pon cuánto quieres gastar como mucho cada mes y te aviso de cuánto te queda.</p>
+      <label class="amount-field small-amount"><span class="sr-only">Límite</span><input id="bu-amount" inputmode="decimal" placeholder="0" autocomplete="off" value="${state.money.budget ? centsToInput(state.money.budget) : ""}"><b>€</b></label>
+      <div class="actions">${state.money.budget ? `<button class="btn text" id="bu-off">Quitar límite</button>` : ""}<button class="btn text" data-close>Cancelar</button><button class="btn" id="bu-ok">Guardar</button></div>
+    </div></div>`);
+  const input = $("#bu-amount", root);
+  amountInput(input);
+  const refresh = () => ($("#bu-ok", root).disabled = L.parseAmount(input.value) == null);
+  input.addEventListener("input", refresh);
+  refresh();
+  input.focus();
+  const set = (budget) => {
+    closeOverlay(root);
+    state.money = { ...state.money, budget };
+    saveData();
+    render();
+  };
+  $("#bu-ok", root).addEventListener("click", () => set(L.parseAmount(input.value)));
+  $("#bu-off", root)?.addEventListener("click", () => set(null));
+}
+
+// ---------------------------------------------------------------- Extracto de Revolut
+
+// Revolut no deja que otras apps lean una cuenta personal: se mete su extracto (Excel o CSV),
+// eligiéndolo aquí o compartiéndolo desde Revolut con Mi Panel. El archivo se lee en el móvil.
+function openRevolutImport(file = null) {
+  const root = overlay(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rv-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="rv-title">Extracto de Revolut</h2>
+      </div>
+      <div class="sheet-body" id="rv-body"></div>
+    </div>`);
+  const body = $("#rv-body", root);
+  const intro = () => {
+    body.innerHTML = `
+      <p class="hint">Revolut no deja que otras apps entren en tu cuenta, pero si metes aquí su extracto se apuntan solos tus gastos e ingresos y ves el saldo que te queda.</p>
+      <ol class="steps">
+        <li>En <b>Revolut</b>, entra en tu cuenta en euros y busca <b>Extracto</b> (suele estar en «⋯» o en «Más»).</li>
+        <li>Elige <b>Excel</b> o <b>CSV</b> y las fechas que quieras.</li>
+        <li>Toca <b>Compartir</b> y elige <b>Mi Panel</b>. Si no sale, guárdalo y elígelo aquí abajo.</li>
+      </ol>
+      <button type="button" class="btn block mt16" id="rv-pick">${svg("add")}Elegir el archivo del extracto</button>
+      <input type="file" id="rv-file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      <p class="small mt12">Los menús de Revolut pueden cambiar un poco según la versión. El archivo no sale de tu móvil: se lee aquí mismo. Si lo vuelves a meter más adelante, solo se apuntan los movimientos nuevos.</p>`;
+    $("#rv-pick", root).addEventListener("click", () => $("#rv-file", root).click());
+    $("#rv-file", root).addEventListener("change", (e) => e.target.files[0] && read(e.target.files[0]));
+  };
+  const fail = (text) => {
+    body.innerHTML = `<p class="hint">${text}</p><button type="button" class="btn block mt16" id="rv-again">Probar con otro archivo</button>`;
+    $("#rv-again", root).addEventListener("click", intro);
+  };
+  const read = async (f) => {
+    body.innerHTML = `<p class="hint">Leyendo el extracto…</p>`;
+    let result;
+    try {
+      const rows = await readTable(f);
+      const known = new Set(state.money.entries.map((e) => e.importId).filter(Boolean));
+      result = L.revolutEntries(rows, known);
+    } catch (e) {
+      fail(e?.message === "columnas"
+        ? "Ese archivo no parece un extracto de Revolut: no tiene las columnas de fecha, descripción e importe."
+        : "No se ha podido leer ese archivo. Saca el extracto en Excel o en CSV (el PDF no sirve).");
+      return;
+    }
+    preview(result);
+  };
+  const preview = (r) => {
+    const sum = (type) => r.entries.filter((e) => e.type === type).reduce((s, e) => s + e.amount, 0);
+    const firstTime = !state.money.entries.some((e) => e.importId);
+    const opening = firstTime && r.opening && r.opening.amount > 0 ? r.opening : null;
+    const notes = [];
+    if (r.skipped.repeated) notes.push(`${r.skipped.repeated} ya los tenías`);
+    if (r.skipped.notDone) notes.push(`${r.skipped.notDone} pendientes o cancelados`);
+    if (r.skipped.otherCurrency) notes.push(`${r.skipped.otherCurrency} de huchas o en otra moneda`);
+    const balance = r.balance ? `<p class="mt12">Saldo en Revolut: <b>${L.fmtMoney(r.balance.balance)}</b> (${L.fmtDateShort(r.balance.date)})</p>` : "";
+    if (!r.entries.length) {
+      body.innerHTML = `<p class="hint">No hay movimientos nuevos${r.skipped.repeated ? ": ya los habías metido todos" : ""}.</p>${balance}
+        <button type="button" class="btn block mt16" id="rv-done">${r.balance ? "Actualizar el saldo" : "Vale"}</button>`;
+      $("#rv-done", root).addEventListener("click", () => {
+        closeOverlay(root);
+        if (r.balance) {
+          state.money = { ...state.money, revolut: newerBalance(r.balance) };
+          saveData();
+          render();
+        }
+      });
+      return;
+    }
+    body.innerHTML = `
+      <p class="eyebrow">En el extracto</p>
+      <div class="mini-stats mt8">
+        <div><b class="num">${r.entries.length}</b><span>movimientos nuevos</span></div>
+        <div><b class="num">${L.fmtMoney(sum("gasto"), { short: true })}</b><span>gastado</span></div>
+        <div><b class="num">${L.fmtMoney(sum("ingreso"), { short: true })}</b><span>ingresado</span></div>
+      </div>
+      ${balance}
+      ${notes.length ? `<p class="small">No se apuntan: ${notes.join(", ")}.</p>` : ""}
+      ${opening ? `<label class="check-row"><input type="checkbox" id="rv-opening" checked>
+        <span>Apuntar también lo que tenías antes del extracto (<b>${L.fmtMoney(opening.amount)}</b>) para que el total cuadre con Revolut</span></label>` : ""}
+      <p class="day-label">Los últimos</p>
+      <div class="rv-list">${r.entries.slice(-6).reverse().map((e) => entryRow(e, false)).join("")}</div>
+      <p class="small mt8">La categoría se adivina por el nombre de la tienda: puedes cambiarla luego tocando cada movimiento.</p>
+      <button type="button" class="btn block mt16" id="rv-ok">Apuntar ${r.entries.length} ${r.entries.length === 1 ? "movimiento" : "movimientos"}</button>`;
+    $("#rv-ok", root).addEventListener("click", () => {
+      const extra = opening && $("#rv-opening", root)?.checked
+        ? [{ id: uid(), createdAt: Date.now() - 1, type: "ingreso", amount: opening.amount, category: "otros", note: "Lo que tenía en Revolut", date: opening.date }]
+        : [];
+      closeOverlay(root);
+      state.money = { ...state.money, entries: [...state.money.entries, ...extra, ...r.entries], revolut: newerBalance(r.balance) };
+      animateNext = true;
+      saveData();
+      if (state.tab !== "dinero") setTab("dinero");
+      else render();
+      toast(`✓ Apuntados ${r.entries.length} movimientos de Revolut`);
+    });
+  };
+  if (file) read(file);
+  else intro();
+}
+
+/** El saldo de Revolut que vale es el del extracto más reciente (meter uno viejo no lo cambia). */
+function newerBalance(balance) {
+  const old = state.money.revolut;
+  if (!balance) return old || null;
+  return !old || balance.date >= old.date ? balance : old;
+}
+
+/** Si se ha compartido un extracto con Mi Panel (desde Revolut, Archivos…), lo abre. */
+async function takeSharedFile() {
+  const params = new URLSearchParams(location.search);
+  if (ARTIFACT || !params.has("importar")) return;
+  params.delete("importar");
+  history.replaceState(history.state, "", `${location.pathname}${params.size ? `?${params}` : ""}`);
+  try {
+    const cache = await caches.open("mipanel-compartido");
+    const res = await cache.match("compartido");
+    if (!res) return;
+    await cache.delete("compartido");
+    const blob = await res.blob();
+    if (state.tab !== "dinero") setTab("dinero");
+    openRevolutImport(blob);
+  } catch {
+    toast("No se ha podido abrir el archivo compartido");
+  }
+}
+
+// ================================================================ Herramientas
+
+function openTool(id) {
+  if (id === "torch") toggleTorch();
+  else if (id === "qr") openScanner();
+  else if (id === "stopwatch") openStopwatch();
+  else if (id === "dice") openDice();
+  else if (id === "speed") openDeviceSheet("speed-body");
+}
+
+function infoDialog(title, text) {
+  overlay(`
+    <div class="scrim"><div class="dialog" role="dialog" aria-modal="true">
+      <h2>${esc(title)}</h2><p style="margin-top:0">${text}</p>
+      <div class="actions"><button class="btn text" data-close>Vale</button></div>
+    </div></div>`);
+}
+
+/** Llama a `fn` cuando la capa se cierre (con la X, el fondo o el botón atrás). */
+function onClosed(root, fn) {
+  const observer = new MutationObserver(() => {
+    if (!root.isConnected) {
+      observer.disconnect();
+      fn();
+    }
+  });
+  observer.observe($("#overlay-root"), { childList: true });
+}
+
+async function copyText(text, label = "Copiado") {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(label);
+  } catch {
+    toast("No se ha podido copiar: mantén pulsado el texto para copiarlo");
+  }
+}
+
+// ---------------------------------------------------------------- Linterna (flash de la cámara)
+
+const torch = { on: false, stream: null };
+
+async function toggleTorch() {
+  if (torch.on) return stopTorch();
+  const fallback = (why) => openScreenLight(`${why} Mientras, la pantalla hace de luz.`);
+  if (!navigator.mediaDevices?.getUserMedia) return fallback("Aquí no se puede usar el flash.");
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+    const track = stream.getVideoTracks()[0];
+    let caps = track.getCapabilities?.() || {};
+    if (!caps.torch) {
+      await new Promise((r) => setTimeout(r, 500)); // algunas cámaras tardan en decir que tienen flash
+      caps = track.getCapabilities?.() || {};
+    }
+    if (!caps.torch) throw Object.assign(new Error("sin flash"), { name: "NoTorch" });
+    await track.applyConstraints({ advanced: [{ torch: true }] });
+  } catch (e) {
+    stream?.getTracks().forEach((t) => t.stop());
+    return fallback(e?.name === "NotAllowedError"
+      ? "Sin permiso para la cámara no se puede encender el flash."
+      : "Este navegador no deja encender el flash desde una app web.");
+  }
+  torch.on = true;
+  torch.stream = stream;
+  keepScreenOn(true);
+  navigator.vibrate?.(30);
+  updateToolButtons();
+  toast("Linterna encendida: toca otra vez para apagarla. Se apaga si sales de la app.", null, null, 5000);
+}
+
+function stopTorch() {
+  torch.stream?.getTracks().forEach((t) => t.stop());
+  torch.stream = null;
+  torch.on = false;
+  keepScreenOn(timer.running);
+  updateToolButtons();
+}
+
+function updateToolButtons() {
+  $('[data-tool="torch"]')?.classList.toggle("on", torch.on);
+  $('[data-tool="stopwatch"]')?.classList.toggle("on", crono.running);
+}
+
+function openScreenLight(message) {
+  // Un lienzo blanco (y no un fondo blanco): el modo oscuro de Samsung Internet no lo oscurece.
+  const root = overlay(`
+    <div class="screen-light" role="dialog" aria-label="Luz de pantalla" data-close>
+      <canvas width="8" height="8"></canvas>
+      <p class="light-note"><b>Toca para apagar</b>${esc(message)}</p>
+    </div>`);
+  const ctx = $("canvas", root).getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, 8, 8);
+  keepScreenOn(true);
+  onClosed(root, () => keepScreenOn(timer.running));
+}
+
+// ---------------------------------------------------------------- Escáner de QR
+
+async function openScanner() {
+  const formats = "BarcodeDetector" in window ? await window.BarcodeDetector.getSupportedFormats().catch(() => []) : [];
+  if (!formats.includes("qr_code")) {
+    infoDialog("Escanear QR", "Este navegador no sabe leer códigos QR. Con Chrome sí; y la cámara del móvil también los lee.");
+    return;
+  }
+  const root = overlay(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="qr-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="qr-title">Escanear QR</h2>
+      </div>
+      <div class="sheet-body">
+        <div class="viewfinder"><video playsinline muted></video><span class="frame"></span></div>
+        <div id="qr-result" class="qr-result"><p class="hint">Apunta al código…</p></div>
+      </div>
+    </div>`);
+  const video = $("video", root);
+  const result = $("#qr-result", root);
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+  } catch (e) {
+    result.innerHTML = `<p class="hint">${e?.name === "NotAllowedError" ? "Hace falta permiso para usar la cámara: dalo en los ajustes del navegador (Sitios → Cámara)." : "No se ha podido abrir la cámara."}</p>`;
+    return;
+  }
+  const stop = () => stream.getTracks().forEach((t) => t.stop());
+  if (!root.isConnected) return stop();
+  onClosed(root, stop);
+  video.srcObject = stream;
+  await video.play().catch(() => {});
+  const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+  let found = false;
+  const show = (text) => {
+    const wifi = L.parseWifiQr(text);
+    const url = /^https?:\/\/\S+$/i.test(text) ? text : null;
+    let html = "";
+    if (wifi) {
+      html = `<p class="eyebrow">Red WiFi</p><p class="strong big-text">${esc(wifi.ssid)}</p>
+        ${wifi.password ? `<p>Contraseña: <span class="selectable mono">${esc(wifi.password)}</span></p>
+        <button type="button" class="btn block mt12" data-copy="${esc(wifi.password)}">Copiar la contraseña</button>` : `<p class="hint">Red sin contraseña.</p>`}`;
+    } else if (url) {
+      html = `<p class="eyebrow">Enlace</p><p class="selectable break">${esc(url)}</p>
+        <a class="btn block mt12" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Abrir el enlace</a>
+        <button type="button" class="btn glass block mt8" data-copy="${esc(url)}">Copiar</button>`;
+    } else {
+      html = `<p class="eyebrow">Texto</p><p class="selectable break">${esc(text)}</p>
+        <button type="button" class="btn block mt12" data-copy="${esc(text)}">Copiar</button>`;
+    }
+    result.innerHTML = `${html}<button type="button" class="btn text block mt8" id="qr-again">Escanear otro</button>`;
+    $("#qr-again", root).addEventListener("click", () => {
+      found = false;
+      result.innerHTML = `<p class="hint">Apunta al código…</p>`;
+    });
+  };
+  result.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-copy]");
+    if (b) copyText(b.dataset.copy);
+  });
+  const loop = async () => {
+    if (!root.isConnected) return;
+    if (!found && video.readyState >= 2) {
+      try {
+        const [code] = await detector.detect(video);
+        if (code?.rawValue && !found) {
+          found = true;
+          navigator.vibrate?.(60);
+          show(code.rawValue);
+        }
+      } catch {
+        // un fotograma que no se ha podido analizar: se prueba con el siguiente
+      }
+    }
+    setTimeout(loop, 250);
+  };
+  loop();
+}
+
+// ---------------------------------------------------------------- Cronómetro
+
+const CRONO_KEY = "mipanel:cronometro";
+const crono = Object.assign({ running: false, startedAt: 0, base: 0, laps: [] }, storage.get(CRONO_KEY, {}));
+const cronoNow = () => crono.base + (crono.running ? Date.now() - crono.startedAt : 0);
+const pad2 = (n) => String(n).padStart(2, "0");
+function fmtCrono(ms) {
+  const h = Math.floor(ms / 3600000);
+  const main = `${h ? `${h}:` : ""}${pad2(Math.floor(ms / 60000) % 60)}:${pad2(Math.floor(ms / 1000) % 60)}`;
+  return `${main}<small>,${pad2(Math.floor(ms / 10) % 100)}</small>`;
+}
+
+function openStopwatch() {
+  const root = overlay(`
+    <div class="scrim"><div class="dialog crono" role="dialog" aria-modal="true" aria-labelledby="cr-title">
+      <h2 id="cr-title">Cronómetro</h2>
+      <div class="crono-time num" id="cr-time"></div>
+      <div class="focus-controls" id="cr-controls"></div>
+      <div class="laps" id="cr-laps"></div>
+      <div class="actions"><button class="btn text" data-close>Cerrar</button></div>
+    </div></div>`);
+  const save = () => storage.set(CRONO_KEY, crono);
+  const draw = () => {
+    const t = cronoNow();
+    $("#cr-controls", root).innerHTML = crono.running
+      ? `<button class="icon-btn big" data-cr="lap" aria-label="Vuelta">${svg("flag")}</button>
+         <button class="btn play" data-cr="pause">${svg("pause")}Pausar</button>`
+      : t > 0
+        ? `<button class="icon-btn big" data-cr="reset" aria-label="Poner a cero">${svg("reset")}</button>
+           <button class="btn play" data-cr="start">${svg("play")}Seguir</button>`
+        : `<button class="btn play" data-cr="start">${svg("play")}Empezar</button>`;
+    const laps = crono.laps.map((total, i) => ({ n: i + 1, total, lap: total - (crono.laps[i - 1] || 0) })).reverse();
+    $("#cr-laps", root).innerHTML = laps.map((l) => `<div class="lap"><span>Vuelta ${l.n}</span><b class="num">${fmtCrono(l.lap)}</b><span class="small num">${fmtCrono(l.total)}</span></div>`).join("");
+    updateToolButtons();
+  };
+  $("#cr-controls", root).addEventListener("click", (e) => {
+    const b = e.target.closest("[data-cr]");
+    if (!b) return;
+    const now = Date.now();
+    if (b.dataset.cr === "start") Object.assign(crono, { running: true, startedAt: now });
+    if (b.dataset.cr === "pause") Object.assign(crono, { running: false, base: crono.base + now - crono.startedAt });
+    if (b.dataset.cr === "reset") Object.assign(crono, { running: false, base: 0, laps: [] });
+    if (b.dataset.cr === "lap") crono.laps = [...crono.laps, cronoNow()].slice(-50);
+    navigator.vibrate?.(20);
+    save();
+    draw();
+  });
+  const frame = () => {
+    if (!root.isConnected) return;
+    $("#cr-time", root).innerHTML = fmtCrono(cronoNow());
+    requestAnimationFrame(frame);
+  };
+  draw();
+  frame();
+}
+
+// ---------------------------------------------------------------- Dados y suerte
+
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+const die = (v) => `<span class="die" aria-label="${v}">${Array.from({ length: 9 }, (_, i) => `<i${PIPS[v].includes(i) ? ' class="on"' : ""}></i>`).join("")}</span>`;
+
+function openDice() {
+  let mode = "dados";
+  let count = 2;
+  const root = overlay(`
+    <div class="scrim"><div class="dialog luck" role="dialog" aria-modal="true" aria-labelledby="dc-title">
+      <h2 id="dc-title">Dados y suerte</h2>
+      <div class="segmented luck-modes">${[["dados", "Dados"], ["moneda", "Moneda"], ["numero", "Número"], ["elegir", "Elegir"]]
+        .map(([id, label]) => `<button type="button" data-mode="${id}">${label}</button>`).join("")}</div>
+      <div id="dc-options"></div>
+      <div class="luck-result" id="dc-result" aria-live="polite"></div>
+      <button type="button" class="btn block mt12" id="dc-go">Tirar</button>
+      <div class="actions"><button class="btn text" data-close>Cerrar</button></div>
+    </div></div>`);
+  const opts = $("#dc-options", root);
+  const out = $("#dc-result", root);
+  const draw = () => {
+    root.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mode === mode));
+    out.innerHTML = "";
+    if (mode === "dados") {
+      opts.innerHTML = `<div class="segmented counts">${[1, 2, 3].map((n) => `<button type="button" data-count="${n}" aria-pressed="${n === count}">${n} ${n === 1 ? "dado" : "dados"}</button>`).join("")}</div>`;
+      out.innerHTML = `<div class="dice">${Array.from({ length: count }, () => die(6)).join("")}</div>`;
+    } else if (mode === "moneda") {
+      opts.innerHTML = "";
+      out.innerHTML = `<div class="coin">?</div>`;
+    } else if (mode === "numero") {
+      opts.innerHTML = `<div class="two"><label class="field"><span>Desde</span><input id="dc-min" inputmode="numeric" value="1"></label>
+        <label class="field"><span>Hasta</span><input id="dc-max" inputmode="numeric" value="100"></label></div>`;
+    } else {
+      opts.innerHTML = `<label class="field"><span>Opciones (una por línea)</span><textarea id="dc-list" rows="4" placeholder="Pizza&#10;Hamburguesa&#10;Sushi"></textarea></label>`;
+    }
+    $("#dc-go", root).textContent = mode === "moneda" ? "Lanzar" : mode === "elegir" ? "Elegir" : mode === "numero" ? "Sacar un número" : "Tirar";
+  };
+  root.addEventListener("click", (e) => {
+    const m = e.target.closest("[data-mode]");
+    const c = e.target.closest("[data-count]");
+    if (m) mode = m.dataset.mode;
+    if (c) count = Number(c.dataset.count);
+    if (m || c) draw();
+  });
+  $("#dc-go", root).addEventListener("click", () => {
+    navigator.vibrate?.(25);
+    if (mode === "dados") {
+      const values = Array.from({ length: count }, () => L.randomInt(1, 6));
+      out.innerHTML = `<div class="dice rolling">${values.map(die).join("")}</div>${count > 1 ? `<p class="luck-total">Total: <b>${values.reduce((a, b) => a + b, 0)}</b></p>` : ""}`;
+    } else if (mode === "moneda") {
+      const side = L.randomInt(0, 1) ? "Cara" : "Cruz";
+      out.innerHTML = `<div class="coin flip">${side}</div>`;
+    } else if (mode === "numero") {
+      const a = parseInt($("#dc-min", root).value, 10);
+      const b = parseInt($("#dc-max", root).value, 10);
+      if (!Number.isFinite(a) || !Number.isFinite(b) || a >= b || b - a > 1e9) {
+        out.innerHTML = `<p class="hint">Pon dos números: el de «Hasta» más grande que el de «Desde».</p>`;
+        return;
+      }
+      out.innerHTML = `<div class="luck-big num pop">${L.randomInt(a, b)}</div>`;
+    } else {
+      const options = $("#dc-list", root).value.split("\n").map((x) => x.trim()).filter(Boolean);
+      if (options.length < 2) {
+        out.innerHTML = `<p class="hint">Escribe al menos dos opciones, una en cada línea.</p>`;
+        return;
+      }
+      out.innerHTML = `<p class="small">Ha salido:</p><div class="luck-big pop">${esc(options[L.randomInt(0, options.length - 1)])}</div>`;
+    }
+  });
+  draw();
+}
+
+// ================================================================ Cuentas atrás (cumpleaños y fechas)
+
+const EVENT_EMOJIS = ["🎂", "🎉", "✈️", "🏖️", "🎬", "🎤", "⚽", "🎮", "📝", "🎄"];
+
+function openEventsSheet() {
+  const root = overlay(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ev-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="ev-title">Cuentas atrás</h2>
+        <button class="btn" type="button" id="ev-add">${svg("add")}Añadir</button>
+      </div>
+      <div class="sheet-body" id="ev-body"></div>
+    </div>`);
+  const draw = () => {
+    const day = today();
+    const next = L.upcomingEvents(state.events, day);
+    const past = state.events.filter((e) => e.type !== "cumple" && e.date < day).sort((a, b) => (a.date < b.date ? 1 : -1));
+    const row = (x, isPast = false) => `
+      <button type="button" class="event${x.days === 0 ? " today" : ""}${isPast ? " past" : ""}" data-ev="${x.event.id}">
+        <span class="event-emoji">${esc(x.event.emoji || "📅")}</span>
+        <span class="grow"><span class="strong">${esc(x.event.name)}</span>
+          <span class="small">${capitalize(L.fmtDateShort(x.date))}${x.turns ? ` · cumple ${x.turns}` : ""}</span></span>
+        <span class="event-count">${isPast ? "Ya pasó" : x.days === 0 ? "¡Hoy!" : x.days === 1 ? "Mañana" : `<b class="num">${x.days}</b><small>días</small>`}</span>
+      </button>`;
+    $("#ev-body", root).innerHTML = next.length || past.length
+      ? `${next.map((x) => row(x)).join("")}
+         ${past.length ? `<p class="day-label">Ya pasaron</p>${past.map((e) => row({ event: e, date: e.date, days: L.daysBetween(day, e.date) }, true)).join("")}` : ""}`
+      : `<div class="empty small-empty"><div class="glow-icon">${svg("cake")}</div><h2>Nada a la vista</h2>
+          <p class="hint">Apunta cumpleaños (se repiten cada año), viajes, conciertos o el último día de clase, y verás cuántos días faltan.</p></div>`;
+  };
+  root.addEventListener("click", (e) => {
+    if (e.target.closest("#ev-add")) openEventEditor(null, draw);
+    const b = e.target.closest("[data-ev]");
+    if (b) openEventEditor(state.events.find((x) => x.id === b.dataset.ev), draw);
+  });
+  draw();
+}
+
+function openEventEditor(ev, onSaved) {
+  let type = ev?.type || "cumple";
+  let emoji = ev?.emoji || "🎂";
+  const root = overlay(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ee-title">
+      <div class="bar">
+        <button class="icon-btn ghost" data-close aria-label="Cerrar">${svg("close")}</button>
+        <h2 id="ee-title">${ev ? "Editar" : "Nueva cuenta atrás"}</h2>
+        <button class="btn" type="submit" form="event-form" id="save">Guardar</button>
+      </div>
+      <form id="event-form" novalidate>
+        <div class="segmented"><button type="button" data-type="cumple">Cumpleaños</button><button type="button" data-type="evento">Otra fecha</button></div>
+        <label class="field"><span id="ee-name-label"></span>
+          <input name="name" maxlength="40" value="${esc(ev?.name || "")}" autocomplete="off"></label>
+        <label class="field"><span id="ee-date-label"></span><input name="date" type="date" value="${ev?.date || ""}">
+          <small id="ee-date-help"></small></label>
+        <div class="emoji-row" id="ee-emojis"></div>
+        ${ev ? `<button type="button" class="btn danger block mt16" id="del">Borrar</button>` : ""}
+      </form>
+    </div>`);
+  const form = $("#event-form", root);
+  const f = form.elements;
+  const draw = () => {
+    root.querySelectorAll("[data-type]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.type === type));
+    $("#ee-name-label", root).textContent = type === "cumple" ? "¿De quién es?" : "¿Qué es?";
+    f.name.placeholder = type === "cumple" ? "Ej.: Ana" : "Ej.: Viaje a la playa";
+    $("#ee-date-label", root).textContent = type === "cumple" ? "Fecha de nacimiento" : "Fecha";
+    $("#ee-date-help", root).textContent = type === "cumple" ? "Con el año sale cuántos cumple. Se repite cada año." : "";
+    $("#ee-emojis", root).innerHTML = EVENT_EMOJIS.map((x) => `<button type="button" data-emoji="${x}" aria-pressed="${x === emoji}">${x}</button>`).join("");
+    $("#save", root).disabled = !f.name.value.trim() || !f.date.value;
+  };
+  root.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-type]");
+    const m = e.target.closest("[data-emoji]");
+    if (t) {
+      type = t.dataset.type;
+      if (type === "cumple") emoji = "🎂";
+      else if (emoji === "🎂") emoji = "🎉";
+    }
+    if (m) emoji = m.dataset.emoji;
+    if (t || m) draw();
+  });
+  f.name.addEventListener("input", draw);
+  f.date.addEventListener("input", draw);
+  draw();
+  if (!ev) f.name.focus();
+  $("#del", root)?.addEventListener("click", () => {
+    closeOverlay(root);
+    state.events = state.events.filter((x) => x.id !== ev.id);
+    saveData();
+    onSaved?.();
+    render();
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if ($("#save", root).disabled) return;
+    const values = { type, emoji, name: f.name.value.trim(), date: f.date.value };
+    closeOverlay(root);
+    state.events = ev ? state.events.map((x) => (x.id === ev.id ? { ...x, ...values } : x)) : [...state.events, { id: uid(), ...values }];
+    saveData();
+    onSaved?.();
+    render();
+  });
+}
+
+/** Un aviso al abrir la app si hoy es el cumple de alguien (una vez al día). */
+function announceToday() {
+  const day = today();
+  if (storage.get("mipanel:aviso-fechas", "") === day) return;
+  const todays = L.upcomingEvents(state.events, day).filter((x) => x.days === 0);
+  if (!todays.length) return;
+  storage.set("mipanel:aviso-fechas", day);
+  const x = todays[0];
+  toastAfter(x.event.type === "cumple" ? `🎂 ¡Hoy es el cumple de ${x.event.name}${x.turns ? ` (${x.turns})` : ""}!` : `${x.event.emoji || "📅"} ¡Hoy es ${x.event.name}!`, null, null, 7000);
+}
+
 // ================================================================ Foco (temporizador de estudio)
 
 const PRESETS = [
@@ -2065,9 +3187,12 @@ function completePhase() {
 
 function renderIfFocus() {
   if (state.tab === "foco") render();
+  else updateHome();
 }
 
 function updateFocusUI() {
+  const tileValue = $("#tile-focus .tile-value");
+  if (tileValue) tileValue.textContent = fmtClock(timeLeft());
   const time = $("#focus-time");
   if (!time) return;
   const left = timeLeft();
@@ -2205,6 +3330,7 @@ function focusDoneDialog() {
 }
 
 document.addEventListener("visibilitychange", () => {
+  if (document.hidden && torch.on) stopTorch(); // el navegador suelta la cámara al salir
   if (!document.hidden && timer.running) {
     tick();
     keepScreenOn(true); // el navegador la suelta al salir de la app
@@ -2218,8 +3344,8 @@ function openBackupDialog() {
     <div class="scrim"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="bk-title">
       <h2 id="bk-title">Copia de seguridad</h2>
       <p style="margin-top:0">${ARTIFACT
-        ? "Tus tareas, notas y horario ya se guardan en tu cuenta de Claude. Si quieres, guarda también una copia en un archivo: sirve para pasarlas a la app instalable (APK) o a la versión web."
-        : "Guarda tus tareas, notas y horario en un archivo (en Descargas, Drive…). Si cambias de móvil o borras los datos de Chrome, las recuperas desde aquí. Sirve también para pasarlas a la app instalable (APK)."}</p>
+        ? "Todo (tareas, notas, horario, dinero y fechas) ya se guarda en tu cuenta de Claude. Si quieres, guarda también una copia en un archivo: sirve para pasarlas a la app instalable (APK) o a la versión web."
+        : "Guarda todo (tareas, notas, horario, dinero y fechas) en un archivo (en Descargas, Drive…). Si cambias de móvil o borras los datos de Chrome, las recuperas desde aquí. Sirve también para pasarlas a la app instalable (APK)."}</p>
       <button class="btn block" id="bk-export">Guardar copia</button>
       <button class="btn outline block mt8" id="bk-import">Recuperar una copia</button>
       <input type="file" id="bk-file" accept=".json,application/json" hidden>
@@ -2228,7 +3354,17 @@ function openBackupDialog() {
     </div></div>`);
   const msg = $("#bk-msg", root);
   $("#bk-export", root).addEventListener("click", async () => {
-    const data = { app: "MiPanel", version: 1, createdAt: Date.now(), tasks: state.tasks, grades: state.grades, focus: state.focus, schedule: state.schedule };
+    const data = {
+      app: "MiPanel",
+      version: 1,
+      createdAt: Date.now(),
+      tasks: state.tasks,
+      grades: state.grades,
+      focus: state.focus,
+      schedule: state.schedule,
+      money: state.money,
+      events: state.events,
+    };
     if (ARTIFACT) {
       const downloads = await window.claude?.use?.("downloads");
       if (!downloads) {
@@ -2265,6 +3401,15 @@ function openBackupDialog() {
       state.tasks = merge(state.tasks, data.tasks);
       state.grades = merge(state.grades, data.grades);
       if (Array.isArray(data.schedule)) state.schedule = merge(state.schedule, data.schedule);
+      if (Array.isArray(data.events)) state.events = merge(state.events, data.events);
+      if (validData("money", data.money)) {
+        state.money = {
+          entries: merge(state.money.entries, data.money.entries),
+          goals: merge(state.money.goals, data.money.goals),
+          budget: state.money.budget ?? data.money.budget ?? null,
+          revolut: state.money.revolut ?? data.money.revolut ?? null,
+        };
+      }
       if (isPlainObject(data.focus)) {
         const focus = { ...state.focus };
         for (const [day, min] of Object.entries(data.focus)) focus[day] = Math.max(focus[day] || 0, Number(min) || 0);
@@ -2409,7 +3554,8 @@ document.addEventListener("click", (e) => {
   const tab = e.target.closest(".tab");
   if (tab) return setTab(tab.dataset.tab);
   const el = e.target.closest("[data-action]");
-  if (!el || el.closest("#overlay-root")) {
+  // Dentro de las ventanas solo funcionan sus propios botones, salvo en "Mi móvil" (test de velocidad, cascos, tiempo).
+  if (!el || (el.closest("#overlay-root") && !el.closest(".live-actions"))) {
     const hit = e.target.closest(".chart .hit");
     if (hit) {
       const toggle = (key, value) => (state[key] = state[key] === value ? null : value);
@@ -2424,6 +3570,9 @@ document.addEventListener("click", (e) => {
         render();
       } else if (hit.dataset.focusday) {
         toggle("selectedFocusDay", hit.dataset.focusday);
+        render();
+      } else if (hit.dataset.moneyday) {
+        selectedMoneyDay = selectedMoneyDay === hit.dataset.moneyday ? null : hit.dataset.moneyday;
         render();
       }
     }
@@ -2527,6 +3676,57 @@ document.addEventListener("click", (e) => {
     case "schedule":
       openScheduleEditor();
       break;
+    case "go":
+      setTab(el.dataset.go);
+      break;
+    case "device":
+      openDeviceSheet();
+      break;
+    case "home-menu":
+      if (openMenuEl) closeMenu();
+      else showMenu(el, [["Mi móvil", () => openDeviceSheet()], ["Horario de clases", openScheduleEditor], ["Cuentas atrás", openEventsSheet], ["Copia de seguridad", openBackupDialog]]);
+      break;
+    case "money-menu":
+      if (openMenuEl) closeMenu();
+      else showMenu(el, [["Meter extracto de Revolut", openRevolutImport], ["Límite de gasto al mes", openBudgetDialog], ["Nueva hucha", () => openGoalEditor(null)], ["Copia de seguridad", openBackupDialog]]);
+      break;
+    case "new-money":
+      openMoneyEditor(null);
+      break;
+    case "money-start":
+      openMoneyEditor(null, { type: "ingreso", category: "otros", note: "Lo que tenía" });
+      break;
+    case "edit-money":
+      openMoneyEditor(state.money.entries.find((x) => x.id === id));
+      break;
+    case "money-more":
+      showAllMoney = true;
+      render();
+      break;
+    case "budget":
+      openBudgetDialog();
+      break;
+    case "new-goal":
+      openGoalEditor(null);
+      break;
+    case "edit-goal":
+      openGoalEditor(state.money.goals.find((x) => x.id === id));
+      break;
+    case "goal-money":
+      openGoalMoneyDialog(state.money.goals.find((x) => x.id === id));
+      break;
+    case "goal-bought":
+      goalBought(state.money.goals.find((x) => x.id === id));
+      break;
+    case "revolut":
+      openRevolutImport();
+      break;
+    case "events":
+      openEventsSheet();
+      break;
+    case "tool":
+      openTool(el.dataset.tool);
+      break;
     case "new-grade":
       openGradeEditor(null, el.dataset.subject || "");
       break;
@@ -2550,7 +3750,7 @@ navigator.connection?.addEventListener("change", updateNetwork);
 let resizeTimer = 0;
 addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => state.tab !== "estado" && render(), 150);
+  resizeTimer = setTimeout(render, 150);
 });
 
 // Si la app se queda abierta de un día para otro, se recalcula "hoy".
@@ -2562,6 +3762,8 @@ setInterval(() => {
   } else if (state.tab === "tareas") {
     const card = $("#schedule-card");
     if (card) card.outerHTML = scheduleCard(today());
+  } else if (state.tab === "inicio") {
+    updateHome();
   }
 }, 60_000);
 
@@ -2569,7 +3771,7 @@ setInterval(() => {
 addEventListener("storage", (e) => {
   if (e.key === DATA_KEY && state.where === "local") {
     loadData();
-    if (state.tab !== "estado") render();
+    render();
   }
 });
 
@@ -2578,17 +3780,50 @@ addEventListener("storage", (e) => {
 // Accesos directos del icono (mantener pulsado): ?pestana=tareas / notas
 const fromUrl = new URLSearchParams(location.search).get("pestana");
 if (fromUrl) state.tab = fromUrl;
-if (!["estado", "tareas", "foco", "notas"].includes(state.tab)) state.tab = "estado";
+if (state.tab === "estado") state.tab = "inicio"; // la antigua pestaña Estado ahora es Inicio
+if (!["inicio", "tareas", "foco", "notas", "dinero"].includes(state.tab)) state.tab = "inicio";
 if (ARTIFACT) initCloud();
 else loadData();
 render();
+takeSharedFile();
+if (!ARTIFACT) announceToday();
+
+// Accesos directos del icono que hacen algo nada más abrir: ?accion=gasto / qr
+const startAction = new URLSearchParams(location.search).get("accion");
+if (startAction) {
+  history.replaceState(history.state, "", location.pathname);
+  if (startAction === "gasto") {
+    setTab("dinero");
+    openMoneyEditor(null);
+  } else if (startAction === "qr" && !ARTIFACT) {
+    openScanner();
+  }
+}
 initBattery();
 initDevice();
 if (timer.running && timeLeft() <= 0) setTimeout(completePhase, 600);
 else ensureTicker();
 
 if (!ARTIFACT && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker
+    .register("sw.js", { updateViaCache: "none" })
+    .then((reg) => {
+      // Al volver a la app se mira si hay versión nueva (se baja en segundo plano).
+      document.addEventListener("visibilitychange", () => !document.hidden && reg.update().catch(() => {}));
+    })
+    .catch(() => {});
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloading) return; // la primera vez no hay nada que cambiar
+    // Versión nueva lista: si acabas de abrir la app se pone sola; si estás usándola, se avisa.
+    if (performance.now() < 15000 && !$("#overlay-root").children.length) {
+      reloading = true;
+      location.reload();
+    } else {
+      toast("Hay una versión nueva de Mi Panel", "Actualizar", () => location.reload(), 12000);
+    }
+  });
 }
 
 // Para los tests automáticos.

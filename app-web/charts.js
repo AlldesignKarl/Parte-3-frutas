@@ -12,7 +12,7 @@ const esc = (s) =>
  * Columnas por día (la última es hoy). `days`: [{date, value, label?}].
  * `unit` se usa en el texto accesible ("págs", "min").
  */
-export function dayColumns(days, { width, height = 170, unit, selected = null, hitAttr = "data-day" }) {
+export function dayColumns(days, { width, height = 170, unit, selected = null, hitAttr = "data-day", fmt = String }) {
   const top = 22;
   const bottom = 36;
   const plotH = height - top - bottom;
@@ -21,7 +21,7 @@ export function dayColumns(days, { width, height = 170, unit, selected = null, h
   const barW = Math.min(24, slot * 0.46);
   const todayIdx = days.length - 1;
   let out = `<svg viewBox="0 0 ${width} ${height}" height="${height}" role="img" aria-label="${esc(
-    days.map((d) => `${d.date}: ${d.value} ${unit}`).join("; ")
+    days.map((d) => `${d.date}: ${fmt(d.value)} ${unit}`).join("; ")
   )}">`;
   out += `<line class="grid" x1="0" x2="${width}" y1="${top + plotH}" y2="${top + plotH}"/>`;
   days.forEach((d, i) => {
@@ -36,13 +36,13 @@ export function dayColumns(days, { width, height = 170, unit, selected = null, h
       const x1 = cx + barW / 2;
       const yb = top + plotH;
       out += `<path class="col${isToday ? " today" : ""}" style="animation-delay:${i * 40}ms" d="M${x0},${yb} V${y + r} Q${x0},${y} ${x0 + r},${y} H${x1 - r} Q${x1},${y} ${x1},${y + r} V${yb} Z"/>`;
-      out += `<text class="value" x="${cx}" y="${y - 7}" text-anchor="middle">${d.value}</text>`;
+      out += `<text class="value" x="${cx}" y="${y - 7}" text-anchor="middle">${fmt(d.value)}</text>`;
     } else {
       out += `<circle class="zero" cx="${cx}" cy="${top + plotH - 3}" r="2.5"/>`;
     }
     out += `<text class="axis${isToday ? " today-label" : ""}" x="${cx}" y="${height - 18}" text-anchor="middle">${isToday ? "Hoy" : weekdayLetter(d.date)}</text>`;
     out += `<text class="axis" x="${cx}" y="${height - 4}" text-anchor="middle">${isoToDate(d.date).getDate()}</text>`;
-    out += `<rect class="hit" ${hitAttr}="${d.date}" x="${cx - slot / 2}" y="0" width="${slot}" height="${height}"><title>${d.value} ${unit}</title></rect>`;
+    out += `<rect class="hit" ${hitAttr}="${d.date}" x="${cx - slot / 2}" y="0" width="${slot}" height="${height}"><title>${fmt(d.value)} ${unit}</title></rect>`;
   });
   return `${out}</svg>`;
 }
@@ -108,4 +108,26 @@ export function sparkline(values, { width = 84, height = 30, color = "var(--acce
     <line class="pass" x1="${pad}" x2="${width - pad}" y1="${y(PASS_GRADE)}" y2="${y(PASS_GRADE)}"/>
     <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="${x(last)}" cy="${y(values[last])}" r="3.5" fill="${color}"/></svg>`;
+}
+
+/** Barras horizontales: etiqueta a la izquierda, barra con el extremo redondeado y el valor al final. */
+export function hbars(items, { width, fmt = String, label = "" }) {
+  const rowH = 40;
+  const labelW = Math.min(width * 0.4, 160);
+  const x0 = labelW + 8;
+  const x1 = width - 72;
+  const max = Math.max(1, ...items.map((i) => i.value));
+  const x = (v) => x0 + (v / max) * (x1 - x0);
+  let out = `<svg viewBox="0 0 ${width} ${rowH * items.length}" height="${rowH * items.length}" role="img" aria-label="${esc(
+    `${label}${items.map((i) => `${i.label}: ${fmt(i.value)}`).join("; ")}`
+  )}">`;
+  items.forEach((it, i) => {
+    const cy = i * rowH + rowH / 2;
+    const end = Math.max(x0 + 4, x(it.value));
+    const r = Math.min(5, (end - x0) / 2);
+    out += `<text x="0" y="${cy + 5}">${esc(it.label)}</text>`;
+    out += `<path class="bar" style="animation-delay:${i * 50}ms" d="M${x0},${cy - 9} H${end - r} Q${end},${cy - 9} ${end},${cy - 9 + r} V${cy + 9 - r} Q${end},${cy + 9} ${end - r},${cy + 9} H${x0} Z"/>`;
+    out += `<text class="value" x="${end + 7}" y="${cy + 5}">${esc(fmt(it.value))}</text>`;
+  });
+  return `${out}</svg>`;
 }
