@@ -14,6 +14,9 @@ const today = () => L.todayIso();
 // en la cuenta de Claude y no hay test de velocidad, Bluetooth ni service worker.
 // eslint-disable-next-line no-undef
 const ARTIFACT = typeof __ARTIFACT__ !== "undefined" && __ARTIFACT__;
+// Fecha de esta versión (la pone el build).
+// eslint-disable-next-line no-undef
+const BUILD = typeof __BUILD__ !== "undefined" ? __BUILD__ : "de pruebas";
 
 const ICON = {
   battery: "M15.67,4H14V2h-4v2H8.33C7.6,4 7,4.6 7,5.33v15.33C7,21.4 7.6,22 8.33,22h7.33c0.74,0 1.34,-0.6 1.34,-1.33V5.33C17,4.6 16.4,4 15.67,4z",
@@ -1018,6 +1021,7 @@ function renderHome() {
           <button type="button" class="tool${t.id === "torch" && torch.on ? " on" : ""}" data-action="tool" data-tool="${t.id}">
             <span class="tool-icon">${svg(t.icon)}</span><span>${t.label}</span></button>`).join("")}</div>
       </section>
+      <p class="version-line">Mi Panel · versión del ${BUILD}${NATIVE ? ` · app Android ${esc(NATIVE.appVersion())}` : ""}</p>
     </div>`;
   autoPing();
   maybeRefreshWeather();
@@ -3876,7 +3880,7 @@ document.addEventListener("click", (e) => {
       break;
     case "home-menu":
       if (openMenuEl) closeMenu();
-      else showMenu(el, [["Mi móvil", () => openDeviceSheet()], ["Horario de clases", openScheduleEditor], ["Cuentas atrás", openEventsSheet], ["Copia de seguridad", openBackupDialog]]);
+      else showMenu(el, [["Mi móvil", () => openDeviceSheet()], ["Horario de clases", openScheduleEditor], ["Cuentas atrás", openEventsSheet], ["Copia de seguridad", openBackupDialog], ["Buscar actualización", checkForUpdate]]);
       break;
     case "money-menu":
       if (openMenuEl) closeMenu();
@@ -4014,6 +4018,7 @@ initDevice();
 if (timer.running && timeLeft() <= 0) setTimeout(completePhase, 600);
 else ensureTicker();
 
+const update = { ready: false, forced: false };
 if (!ARTIFACT && "serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker
@@ -4024,15 +4029,51 @@ if (!ARTIFACT && "serviceWorker" in navigator && (location.protocol === "https:"
     })
     .catch(() => {});
   let reloading = false;
+  const reload = () => {
+    if (reloading) return;
+    reloading = true;
+    location.reload();
+  };
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!hadController || reloading) return; // la primera vez no hay nada que cambiar
-    // Versión nueva lista: si acabas de abrir la app se pone sola; si estás usándola, se avisa.
-    if (performance.now() < 15000 && !$("#overlay-root").children.length) {
-      reloading = true;
-      location.reload();
+    // Versión nueva lista: si acabas de abrir la app (o la has pedido) se pone sola; si estás
+    // usándola, se avisa y se pone en cuanto vuelvas a la app.
+    if (update.forced || (performance.now() < 15000 && !$("#overlay-root").children.length)) {
+      reload();
     } else {
-      toast("Hay una versión nueva de Mi Panel", "Actualizar", () => location.reload(), 12000);
+      update.ready = true;
+      toast("Hay una versión nueva de Mi Panel", "Actualizar", reload, 12000);
     }
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && update.ready && !$("#overlay-root").children.length) reload();
+  });
+}
+
+/** "Buscar actualización": mira si hay versión nueva y, si la hay, la pone en cuanto se descarga. */
+async function checkForUpdate() {
+  const reg = await navigator.serviceWorker?.getRegistration?.().catch(() => null);
+  if (!reg) {
+    toast(`Tienes la versión del ${BUILD}`);
+    return;
+  }
+  if (update.ready) return location.reload();
+  toast("Buscando actualización…", null, null, 20000);
+  try {
+    await reg.update();
+  } catch {
+    toast("No se ha podido comprobar: ¿hay internet?");
+    return;
+  }
+  const incoming = reg.installing || reg.waiting;
+  if (!incoming) {
+    toast(`Ya tienes la última versión (del ${BUILD})`);
+    return;
+  }
+  update.forced = true;
+  toast("Descargando la versión nueva…", null, null, 30000);
+  incoming.addEventListener("statechange", () => {
+    if (incoming.state === "redundant") toast("Aún no está lista en el servidor: prueba otra vez en unos minutos");
   });
 }
 

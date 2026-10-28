@@ -2,6 +2,10 @@
 // Cada versión publicada tiene su propia caché (VERSION la pone el build): cuando hay una nueva se
 // descarga entera de una vez en segundo plano, así nunca se mezclan archivos de dos versiones.
 const VERSION = "dev";
+// Huella (SHA-256) de cada archivo de esta versión, también del build. GitHub y githack tardan unos
+// minutos en servir lo nuevo, y cada archivo a su ritmo: si llega uno de antes, no se instala nada
+// y se vuelve a intentar más tarde (si no, la app se quedaría con media versión vieja).
+const HASHES = {};
 const CACHE = `mipanel-${VERSION}`;
 const FONTS = "mipanel-fuentes";
 const SHARED = "mipanel-compartido";
@@ -11,12 +15,28 @@ const SHELL = [
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png",
 ];
 
+const hex = (buffer) => [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+/** Baja un archivo sin pasar por ninguna caché y comprueba que es el de esta versión. */
+async function fetchVerified(url) {
+  const expected = HASHES[url];
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch(new Request(attempt ? `${url}?nocache=${Date.now()}-${attempt}` : url, { cache: "reload" }));
+    if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+    if (!expected) return res;
+    if (hex(await crypto.subtle.digest("SHA-256", await res.clone().arrayBuffer())) === expected) return res;
+  }
+  throw new Error(`${url}: el servidor todavía da la versión anterior`);
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" }))))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    // Primero se bajan y se comprueban todos; solo entonces se guardan (nunca media versión).
+    const responses = await Promise.all(SHELL.map(fetchVerified));
+    const cache = await caches.open(CACHE);
+    await Promise.all(SHELL.map((url, i) => cache.put(url, responses[i])));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", (event) => {

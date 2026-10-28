@@ -15,27 +15,36 @@ const out = process.argv[2] || join(here, "build");
 const esbuild = process.env.ESBUILD || "esbuild";
 const run = (args) => execFileSync(esbuild, args, { cwd: here, stdio: ["ignore", "pipe", "inherit"] }).toString();
 
+// Fecha de esta versión (se ve en Inicio y en "Buscar actualización"), en hora de España.
+const builtAt = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+  .format(new Date())
+  .replace(",", "");
+const buildDefine = `--define:__BUILD__=${JSON.stringify(builtAt)}`;
+
 // Web instalable
 const web = join(out, "web");
 mkdirSync(join(web, "icons"), { recursive: true });
-run(["app.js", "--bundle", "--minify", "--format=esm", "--target=chrome100", `--outfile=${join(web, "app.js")}`, "--log-level=warning"]);
+run(["app.js", "--bundle", "--minify", "--format=esm", "--target=chrome100", buildDefine, `--outfile=${join(web, "app.js")}`, "--log-level=warning"]);
 run(["styles.css", "--minify", `--outfile=${join(web, "styles.css")}`, "--log-level=warning"]);
 for (const f of ["index.html", "manifest.webmanifest", "vercel.json"]) copyFileSync(join(here, f), join(web, f));
 for (const f of readdirSync(join(here, "icons"))) copyFileSync(join(here, "icons", f), join(web, "icons", f));
+// Huella de cada archivo: el service worker comprueba que lo que baja es justo esta versión (GitHub y
+// githack tardan unos minutos en servir lo nuevo, y cada archivo a su ritmo).
+const sha = (data) => createHash("sha256").update(data).digest("hex");
+const shellFiles = ["index.html", "styles.css", "app.js", "manifest.webmanifest", ...readdirSync(join(web, "icons")).map((f) => `icons/${f}`)];
+const hashes = Object.fromEntries(shellFiles.map((f) => [f, sha(readFileSync(join(web, f)))]));
 // Cada versión publicada lleva su propio nombre de caché: así el móvil sabe que hay una nueva y la baja entera.
-const version = createHash("sha256")
-  .update(["app.js", "styles.css", "index.html", "manifest.webmanifest"].map((f) => readFileSync(join(web, f))).join("\n"))
-  .digest("hex")
-  .slice(0, 10);
+const version = sha(JSON.stringify(hashes)).slice(0, 10);
 const sw = readFileSync(join(here, "sw.js"), "utf8")
   .replace('const VERSION = "dev";', `const VERSION = "${version}";`)
+  .replace("const HASHES = {};", `const HASHES = ${JSON.stringify(hashes)};`)
   .replace('"app.js", "logic.js", "charts.js", "importers.js",', '"app.js",');
-if (!sw.includes(version) || sw.includes('"logic.js"')) throw new Error("sw.js: no se ha podido poner la versión");
+if (!sw.includes(version) || !sw.includes(hashes["app.js"]) || sw.includes('"logic.js"')) throw new Error("sw.js: no se ha podido poner la versión");
 writeFileSync(join(web, "sw.js"), sw);
 writeFileSync(join(web, ".nojekyll"), ""); // GitHub Pages: servir los archivos tal cual
 
 // Página de claude.ai: un solo archivo con el CSS y el JS dentro
-const js = run(["app.js", "--bundle", "--minify", "--format=esm", "--target=chrome100", "--define:__ARTIFACT__=true", "--log-level=warning"]);
+const js = run(["app.js", "--bundle", "--minify", "--format=esm", "--target=chrome100", "--define:__ARTIFACT__=true", buildDefine, "--log-level=warning"]);
 const css = run(["styles.css", "--minify", "--log-level=warning"]);
 const html = readFileSync(join(here, "index.html"), "utf8");
 const body = html.slice(html.indexOf(">", html.indexOf("<body")) + 1, html.indexOf("</body>")).trim();
