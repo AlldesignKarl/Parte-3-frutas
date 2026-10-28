@@ -1,0 +1,39 @@
+{
+  "name": "Mi Panel",
+  "short_name": "Mi Panel",
+  "description": "Tu panel de control: batería, el tiempo, clases, tareas, foco, notas y dinero.",
+  "lang": "es",
+  "id": "mi-panel",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070A14",
+  "theme_color": "#070A14",
+  "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-monochrome-512.png", "sizes": "512x512", "type": "image/png", "purpose": "monochrome" }
+  ],
+  "shortcuts": [
+    { "name": "Apuntar un gasto", "short_name": "Gasto", "url": "./index.html?accion=gasto", "icons": [{ "src": "icons/atajo-dinero.png", "sizes": "96x96", "type": "image/png" }] },
+    { "name": "Foco", "url": "./index.html?pestana=foco", "icons": [{ "src": "icons/atajo-foco.png", "sizes": "96x96", "type": "image/png" }] },
+    { "name": "Tareas", "url": "./index.html?pestana=tareas", "icons": [{ "src": "icons/atajo-tareas.png", "sizes": "96x96", "type": "image/png" }] },
+    { "name": "Escanear QR", "short_name": "QR", "url": "./index.html?accion=qr", "icons": [{ "src": "icons/atajo-qr.png", "sizes": "96x96", "type": "image/png" }] }
+  ],
+  "share_target": {
+    "action": "./compartir",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "archivo",
+          "accept": [".csv", ".xlsx", "text/csv", "text/comma-separated-values", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]
+        }
+      ]
+    }
+  }
+}
