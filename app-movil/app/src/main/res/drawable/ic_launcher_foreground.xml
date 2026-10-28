@@ -1,24 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cuatro baldosas con los colores de las secciones de Mi Panel -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Polo de la pila -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M50,27h8a2,2 0,0 1,2 2v4h-12v-4a2,2 0,0 1,2 -2z" />
-    <!-- Cuerpo de la pila -->
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M46,33h16a6,6 0,0 1,6 6v36a6,6 0,0 1,-6 6h-16a6,6 0,0 1,-6 -6v-36a6,6 0,0 1,6 -6z"
-        android:strokeWidth="5"
-        android:strokeColor="#FFFFFFFF" />
-    <!-- Check de tarea terminada -->
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M47,57l5.5,5.5l10,-11"
-        android:strokeWidth="5"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+    <path android:fillColor="#FF3EE6FF" android:pathData="M37.00,31.00 h8.25 a6,6 0 0 1 6,6 v8.25 a6,6 0 0 1 -6,6 h-8.25 a6,6 0 0 1 -6,-6 v-8.25 a6,6 0 0 1 6,-6 z" />
+    <path android:fillColor="#FFA68BFF" android:pathData="M62.75,31.00 h8.25 a6,6 0 0 1 6,6 v8.25 a6,6 0 0 1 -6,6 h-8.25 a6,6 0 0 1 -6,-6 v-8.25 a6,6 0 0 1 6,-6 z" />
+    <path android:fillColor="#FFFFC857" android:pathData="M37.00,56.75 h8.25 a6,6 0 0 1 6,6 v8.25 a6,6 0 0 1 -6,6 h-8.25 a6,6 0 0 1 -6,-6 v-8.25 a6,6 0 0 1 6,-6 z" />
+    <path android:fillColor="#FFC6F25A" android:pathData="M62.75,56.75 h8.25 a6,6 0 0 1 6,6 v8.25 a6,6 0 0 1 -6,6 h-8.25 a6,6 0 0 1 -6,-6 v-8.25 a6,6 0 0 1 6,-6 z" />
 </vector>

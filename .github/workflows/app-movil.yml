@@ -61,28 +61,8 @@ jobs:
       - name: Compilar el APK
         run: ./gradlew --no-daemon --stacktrace assembleRelease
 
-      - name: Capturas de pantalla
-        continue-on-error: true
-        run: ./gradlew --no-daemon testDebugUnitTest --tests '*ScreenshotsTest'
-
-      # Las capturas se publican aparte (versión de prueba) para poder verlas aunque falle algún test.
-      - name: Publicar capturas
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          shopt -s nullglob
-          files=(app/build/capturas/*.png)
-          if [ ${#files[@]} -eq 0 ]; then echo "No hay capturas"; exit 0; fi
-          gh release delete mi-panel-capturas --yes --cleanup-tag || true
-          gh release create mi-panel-capturas "${files[@]}" \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Capturas de Mi Panel (compilación $VERSION_CODE)" \
-            --notes "Capturas de cada pantalla con datos de ejemplo, generadas automáticamente."
-
-      - name: Tests (lógica y recorrido por la app)
-        run: ./gradlew --no-daemon testDebugUnitTest --tests '*LogicTest' --tests '*AppFlowTest'
+      - name: Tests (mensajes, llamadas perdidas y la app)
+        run: ./gradlew --no-daemon testDebugUnitTest
 
       - name: Preparar APK
         if: success()
@@ -95,14 +75,12 @@ jobs:
           path: app-movil/MiPanel.apk
           if-no-files-found: error
 
-      - name: Guardar capturas e informes
+      - name: Guardar informes de los tests
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: capturas
-          path: |
-            app-movil/app/build/capturas/
-            app-movil/app/build/reports/tests/
+          name: informes
+          path: app-movil/app/build/reports/tests/
           if-no-files-found: ignore
 
       - name: Publicar la versión para descargar desde el móvil
@@ -112,5 +90,5 @@ jobs:
           gh release delete mi-panel --yes --cleanup-tag || true
           gh release create mi-panel MiPanel.apk \
             --target "$GITHUB_SHA" \
-            --title "Mi Panel (app Android) · versión 1.0.$VERSION_CODE" \
-            --notes "Descarga MiPanel.apk desde el móvil y ábrelo para instalar. Antes de actualizar, guarda una copia de seguridad desde la app (menú ⋮ de Tareas o Notas)."
+            --title "Mi Panel (app Android) · versión 2.0.$VERSION_CODE" \
+            --notes "Descarga MiPanel.apk desde el móvil y ábrelo para instalar. Es la misma Mi Panel de siempre (se actualiza sola) y además enseña tus mensajes de WhatsApp, Discord, Telegram… y las llamadas perdidas, si le das «Acceso a notificaciones». Si ya tenías una versión instalada, guarda antes una copia de seguridad (menú ⋮ → Copia de seguridad)."
