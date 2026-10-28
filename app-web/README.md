@@ -33,7 +33,9 @@ consumo de la batería. Eso solo está en la app Android.
 La carpeta `docs/` (en la raíz del repositorio) es la versión web ya generada. Con GitHub Pages
 activado desde esa carpeta se abre en <https://alldesignkarl.github.io/Parte-3-frutas/> y Chrome la
 instala como app (menú ⋮ → Instalar aplicación). Para actualizarla: `node build.mjs /tmp/salida` y
-copiar `/tmp/salida/web/` en `docs/` (sin `vercel.json`).
+`node publicar.mjs /tmp/salida/web ../docs`. El JS y el CSS llevan su huella en el nombre
+(`app.<huella>.js`) y `publicar.mjs` deja los de las últimas versiones: githack tarda unos minutos en
+servir cada archivo nuevo, y así un `index.html` siempre carga los suyos, nunca media versión.
 
 La app instalada abre desde su copia guardada (al momento y sin internet). Cada build lleva su propia
 versión en `sw.js`: al publicar, el móvil baja la nueva entera en segundo plano y se pone sola.
