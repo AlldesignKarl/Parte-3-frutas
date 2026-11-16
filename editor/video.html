@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Apuntes con Claude</title>
+<style>
+@font-face { font-family: 'Nunito'; src: url(fonts/Nunito-latin.woff2) format('woff2'); font-weight: 200 1000; }
+@font-face { font-family: 'JBM'; src: url(fonts/JetBrainsMono-latin.woff2) format('woff2'); font-weight: 100 800; }
+:root {
+  --ink: #1E2232; --ink2: #151827; --cream: #F4EFE9; --sand: #E7E0D6;
+  --indigo: #4F46E5; --lime: #E2F76A; --pink: #FFDDE2; --mint: #CDF3D9;
+  --yellow: #FFEFA6; --lav: #E3DDFF; --sky: #D5EBFF;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: var(--cream); }
+body { font-family: 'Nunito', 'Inter', 'Noto Color Emoji', sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+.abs { position: absolute; }
+.scene { position: absolute; inset: 0; visibility: hidden; overflow: hidden; }
+.scene.light { background: var(--cream); }
+.scene.dark { background: var(--ink); color: #fff; }
+.blobs { position: absolute; inset: -200px; }
+.dots { position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.07) 2px, transparent 2.5px); background-size: 44px 44px; }
+.light .dots { background-image: radial-gradient(rgba(30,34,50,.06) 2px, transparent 2.5px); }
+
+.cap { position: absolute; letter-spacing: -0.01em; }
+.cap .w { display: inline-block; will-change: transform; }
+.light .cap .hl, .cap.onlight .hl {
+  background-image: linear-gradient(var(--lime), var(--lime)); background-repeat: no-repeat;
+  background-position: 0 60%; background-size: 0% 100%; padding: 0 .16em; margin: 0 -.06em; border-radius: .18em;
+}
+.dark .cap .hl { color: var(--lime); }
+
+/* teléfono */
+.phone { position: absolute; background: #121524; border-radius: 66px; box-shadow: 0 40px 90px rgba(20,22,40,.28), 0 0 0 3px rgba(255,255,255,.06) inset; }
+.phone .screen { position: absolute; overflow: hidden; border-radius: 52px; background: var(--cream); }
+.phone .screen img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.phone .fx { position: absolute; inset: 0; pointer-events: none; }
+.ripple { position: absolute; width: 0; height: 0; }
+.ripple i { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
+
+.sticker { position: absolute; font-weight: 900; border-radius: 24px; padding: 14px 28px; box-shadow: 0 14px 30px rgba(20,22,40,.18); white-space: nowrap; }
+
+/* tabs */
+.tabs { position: absolute; left: 85px; top: 110px; width: 910px; height: 104px; }
+.tabs .ind { position: absolute; left: 0; top: 0; width: 290px; height: 104px; background: var(--ink); border-radius: 32px; }
+.tabs .pill { position: absolute; top: 0; width: 290px; height: 104px; border-radius: 32px; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 40px; font-weight: 900; }
+.tabs .bgp { background: var(--sand); }
+
+/* chat */
+.panel { position: absolute; background: #fff; border-radius: 48px; box-shadow: 0 30px 80px rgba(30,34,50,.12); }
+.bubble { position: absolute; background: var(--indigo); color: #fff; font-size: 40px; font-weight: 800; line-height: 1.25; padding: 26px 34px; border-radius: 38px 38px 12px 38px; }
+.inputbar { position: absolute; background: var(--cream); border-radius: 42px; }
+.send { position: absolute; width: 88px; height: 88px; border-radius: 50%; background: var(--indigo); color: #fff; font: 900 46px/88px 'Inter', sans-serif; text-align: center; }
+.tdots i { display: inline-block; width: 20px; height: 20px; margin-right: 12px; border-radius: 50%; background: #B9B2A6; }
+.acard { position: absolute; border: 3px solid #ECE5DB; border-radius: 36px; overflow: hidden; background: #fff; }
+
+/* tarjetas grandes */
+.bigcard { position: absolute; border-radius: 48px; display: flex; align-items: center; }
+.num { width: 84px; height: 84px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 46px; font-weight: 900; display: flex; align-items: center; justify-content: center; flex: none; }
+
+/* código */
+.code { position: absolute; background: #0E1120; border-radius: 34px; border: 2px solid rgba(255,255,255,.09); box-shadow: 0 40px 90px rgba(0,0,0,.35); overflow: hidden; }
+.code .bar { height: 72px; display: flex; align-items: center; gap: 14px; padding-left: 30px; border-bottom: 2px solid rgba(255,255,255,.06); }
+.code .bar i { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
+.code .bar span { margin-left: 18px; font: 600 28px 'JBM', monospace; color: rgba(255,255,255,.45); }
+.code pre { margin: 0; padding: 30px 38px; font: 500 33px/52px 'JBM', 'Noto Color Emoji', monospace; color: #E8E9F3; white-space: pre; }
+.caret { display: inline-block; width: 4px; height: 1.05em; background: var(--lime); vertical-align: -0.15em; margin-left: 2px; }
+
+.step { position: absolute; left: 90px; width: 900px; height: 210px; border-radius: 40px; background: rgba(255,255,255,.06); border: 3px solid rgba(255,255,255,.10); }
+.step .ico { position: absolute; left: 34px; top: 48px; width: 114px; height: 114px; border-radius: 32px; background: var(--lime); display: flex; align-items: center; justify-content: center; font-size: 62px; }
+.step .ico b { position: absolute; left: -12px; top: -12px; width: 48px; height: 48px; border-radius: 50%; background: var(--indigo); color: #fff; font-size: 28px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+.step .t1 { position: absolute; left: 182px; top: 44px; font-size: 50px; font-weight: 900; color: #fff; }
+.step .t2 { position: absolute; left: 182px; top: 112px; font-size: 35px; font-weight: 700; color: rgba(255,255,255,.62); }
+
+.row { position: absolute; left: 90px; width: 900px; height: 190px; border-radius: 44px; }
+.row .e { position: absolute; left: 44px; top: 0; height: 190px; display: flex; align-items: center; font-size: 84px; }
+.row .t1 { position: absolute; left: 172px; top: 34px; font-size: 54px; font-weight: 900; }
+.row .t2 { position: absolute; left: 172px; top: 104px; font-size: 40px; font-weight: 800; color: var(--indigo); }
+
+.chip { position: absolute; left: 50%; background: var(--ink); color: #fff; border-radius: 999px; padding: 26px 44px; font-size: 44px; font-weight: 900; white-space: nowrap; }
+.chip .hl { color: var(--lime); }
+
+.wipe { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; visibility: hidden; }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="wipeA" class="wipe"></div>
+<div id="wipeB" class="wipe"></div>
+<div id="fade"></div>
+
+<script>
+// ───────────────────────── utilidades ─────────────────────────
+const W = 1080, H = 1920, FPS = 30, DUR = 67.0;
+const SRC_FPS = 30, SRC_N = 1296, SRC_W = 1080, SRC_H = 1988;
+const qs = new URLSearchParams(location.search);
+const FRAMES = qs.get('frames') || '.cache/frames/';
+
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const E = {
+  outCubic: x => 1 - Math.pow(1 - x, 3),
+  inCubic: x => x * x * x,
+  inOutCubic: x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
+  outBack: x => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+  outExpo: x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x),
+};
+const prog = (t, a, d) => clamp((t - a) / d);
+
+function h(tag, cls, parent, css, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (css) e.style.cssText = css;
+  if (html != null) e.innerHTML = html;
+  (parent || document.getElementById('root')).appendChild(e);
+  return e;
+}
+const vis = (el, on) => { el.style.visibility = on ? 'visible' : 'hidden'; return on; };
+
+function frameURL(s) {
+  let i = Math.round(s * SRC_FPS) + 1;
+  i = Math.max(1, Math.min(SRC_N, i));
+  return FRAMES + 'f_' + String(i).padStart(4, '0') + '.jpg';
+}
+
+// Texto con palabras animadas. [[x]] = resaltado, \n = salto de línea.
+function caption(parent, text, o) {
+  const width = o.width || 920;
+  const d = h('div', 'cap' + (o.cls ? ' ' + o.cls : ''), parent,
+    `top:${o.top}px;left:${o.left ?? (W - width) / 2}px;width:${width}px;font-size:${o.size || 64}px;` +
+    `font-weight:${o.weight || 900};line-height:${o.lh || 1.13};text-align:${o.align || 'center'};` +
+    (o.color ? `color:${o.color};` : '') + (o.origin ? `transform-origin:${o.origin};` : ''));
+  const re = /\[\[(.+?)\]\]([^\s\[]*)|(\n)|(\S+)/g; let m; d.words = [];
+  while ((m = re.exec(text))) {
+    if (m[3]) { d.appendChild(document.createElement('br')); continue; }
+    const s = h('span', m[1] ? 'w hl' : 'w', d); s.textContent = m[1] || m[4];
+    d.words.push(s);
+    if (m[1] && m[2]) { const s2 = h('span', 'w', d); s2.textContent = m[2]; d.words.push(s2); }
+    d.appendChild(document.createTextNode(' '));
+  }
+  return d;
+}
+
+// Animación de entrada palabra a palabra + salida del bloque
+function capAnim(c, t, a, b, o = {}) {
+  const st = o.stagger ?? .07, din = o.din ?? .5, dout = o.dout ?? .3;
+  if (t < a - .001 || t > b + dout) return vis(c, false);
+  vis(c, true);
+  const po = E.inCubic(prog(t, b, dout));
+  c.style.opacity = 1 - po;
+  c.style.transform = (o.base || '') + ` translateY(${-po * 36}px)`;
+  c.words.forEach((w, i) => {
+    const p = prog(t, a + i * st, din);
+    if (o.pop) {
+      w.style.opacity = clamp(p * 3);
+      w.style.transform = `scale(${lerp(.4, 1, E.outBack(p))})`;
+    } else {
+      w.style.opacity = clamp(p * 2.2);
+      w.style.transform = `translateY(${(1 - E.outCubic(p)) * 56}px) scale(${lerp(.86, 1, E.outBack(p))})`;
+    }
+    if (w.classList.contains('hl')) {
+      const q = prog(t, a + i * st + .22, .38);
+      w.style.backgroundSize = `${E.outCubic(q) * 100}% 100%`;
+    }
+  });
+  return true;
+}
+
+// Animación genérica de un bloque
+function blockAnim(el, t, a, b, o = {}) {
+  const din = o.din ?? .5, dout = o.dout ?? .3, type = o.type || 'up', base = o.base || '';
+  if (t < a - .001 || t > b + dout) return vis(el, false);
+  vis(el, true);
+  const p = prog(t, a, din), po = E.inCubic(prog(t, b, dout));
+  let tr = base, op = 1;
+  if (type === 'up') { tr += ` translateY(${(1 - E.outCubic(p)) * 70}px)`; op = clamp(p * 2); }
+  if (type === 'down') { tr += ` translateY(${-(1 - E.outCubic(p)) * 50}px)`; op = clamp(p * 2); }
+  if (type === 'left') { tr += ` translateX(${(1 - E.outBack(p)) * 160}px)`; op = clamp(p * 2.5); }
+  if (type === 'pop') { tr += ` scale(${lerp(.5, 1, E.outBack(p))})`; op = clamp(p * 3); }
+  if (type === 'fade') { op = p; }
+  if (o.outType === 'left') tr += ` translateX(${-po * 1150}px)`;
+  else if (o.outType === 'down') tr += ` translateY(${po * 1500}px)`;
+  else { tr += ` translateY(${-po * 30}px)`; op *= 1 - po; }
+  el.style.transform = tr; el.style.opacity = op;
+  return true;
+}
+
+// ───────────────────────── teléfono ─────────────────────────
+const phones = [];
+function Phone(parent, { cx, top, w }) {
+  const bez = 16, sw = w - 2 * bez, sh = Math.round(sw * SRC_H / SRC_W), ph = sh + 2 * bez;
+  const root = h('div', 'phone', parent, `left:${cx - w / 2}px;top:${top}px;width:${w}px;height:${ph}px;`);
+  const screen = h('div', 'screen', root, `left:${bez}px;top:${bez}px;width:${sw}px;height:${sh}px;`);
+  const img = h('img', '', screen, `width:${sw}px;height:${sh}px;`);
+  const fx = h('div', 'fx', screen);
+  const P = { root, screen, img, fx, sw, sh, ph, k: sw / SRC_W, cur: null, want: null, ripples: [], boxes: [] };
+  P.src = s => { P.want = frameURL(s); };
+  P.zoom = (s, fx_, fy_) => {
+    const k = P.k, fxp = fx_ * k, fyp = fy_ * k;
+    let tx = sw / 2 - s * fxp, ty = sh / 2 - s * fyp;
+    tx = clamp(tx, sw - s * sw, 0); ty = clamp(ty, sh - s * sh, 0);
+    img.style.transform = `translate(${tx}px,${ty}px) scale(${s})`;
+    P.z = { s, tx, ty };
+  };
+  P.zoom(1, 540, 994);
+  P.addRipple = (time, x, y) => {
+    const r = h('div', 'ripple', fx);
+    const ring = h('i', '', r, 'border:6px solid rgba(79,70,229,.85);');
+    const dot = h('i', '', r, 'background:rgba(79,70,229,.35);');
+    P.ripples.push({ time, x, y, r, ring, dot });
+  };
+  P.addBox = (a, b, x0, y0, x1, y1) => {
+    const el = h('div', '', fx, 'position:absolute;border:7px solid var(--lime);border-radius:44px;box-shadow:0 0 0 6px rgba(30,34,50,.85);');
+    P.boxes.push({ a, b, x0, y0, x1, y1, el });
+  };
+  P.fxUpdate = t => {
+    const z = P.z, k = P.k;
+    const map = (x, y) => [z.tx + z.s * x * k, z.ty + z.s * y * k];
+    for (const R of P.ripples) {
+      const p = (t - R.time) / .55;
+      if (p < 0 || p > 1) { vis(R.r, false); continue; }
+      vis(R.r, true);
+      const [x, y] = map(R.x, R.y);
+      R.r.style.left = x + 'px'; R.r.style.top = y + 'px';
+      const rr = lerp(30, 150, E.outCubic(p));
+      R.ring.style.width = R.ring.style.height = rr + 'px'; R.ring.style.opacity = 1 - p;
+      const dr = p < .3 ? lerp(40, 80, p / .3) : 80;
+      R.dot.style.width = R.dot.style.height = dr + 'px'; R.dot.style.opacity = p < .5 ? 1 : 1 - (p - .5) * 2;
+    }
+    for (const B of P.boxes) {
+      if (!vis(B.el, t >= B.a && t <= B.b + .3)) continue;
+      const [x0, y0] = map(B.x0, B.y0), [x1, y1] = map(B.x1, B.y1);
+      const p = E.outBack(prog(t, B.a, .45)), po = prog(t, B.b, .3);
+      const pulse = 1 + .015 * Math.sin((t - B.a) * 9);
+      B.el.style.left = x0 + 'px'; B.el.style.top = y0 + 'px';
+      B.el.style.width = (x1 - x0) + 'px'; B.el.style.height = (y1 - y0) + 'px';
+      B.el.style.transform = `scale(${lerp(1.25, 1, p) * pulse})`; B.el.style.opacity = clamp(prog(t, B.a, .2)) * (1 - po);
+    }
+  };
+  phones.push(P);
+  return P;
+}
+
+// Fondo con manchas de color suaves
+function blobs(scene, colors) {
+  const b = h('div', 'blobs', scene);
+  h('div', 'dots', scene);
+  return t => {
+    const g = colors.map((c, i) => {
+      const x = 50 + 38 * Math.sin(t * .23 + i * 2.1), y = 50 + 34 * Math.cos(t * .19 + i * 1.7);
+      return `radial-gradient(circle at ${x}% ${y}%, ${c} 0%, transparent 42%)`;
+    });
+    b.style.background = g.join(',');
+  };
+}
+
+const scenes = [];
+function Scene(a, b, cls) {
+  const el = h('div', 'scene ' + cls);
+  const S = { a, b, el, upd: [] };
+  scenes.push(S);
+  return S;
+}
+
+// ═════════════════════ ESCENA 1 · Gancho (0 – 4.4) ═════════════════════
+const S1 = Scene(0, 4.4, 'dark');
+{
+  const bg = blobs(S1.el, ['rgba(79,70,229,.55)', 'rgba(226,247,106,.16)', 'rgba(255,143,177,.22)']);
+  const group = h('div', 'abs', S1.el, 'left:0;top:0;width:1080px;height:1920px;transform-origin:540px 740px;');
+  const l1 = caption(group, 'Le pedí a Claude', { top: 720, size: 104, width: 1000 });
+  const l2 = caption(group, 'unos [[apuntes]]…', { top: 846, size: 104, width: 1000 });
+  const l3 = caption(group, '…y me hizo [[ESTO]] 🤯', { top: 1000, size: 100, width: 1060 });
+  const ph = Phone(S1.el, { cx: 540, top: 640, w: 680 });
+  S1.upd.push(t => {
+    bg(t);
+    capAnim(l1, t, .12, 99, { stagger: .09 });
+    capAnim(l2, t, .55, 99, { stagger: .09 });
+    capAnim(l3, t, 1.4, 99, { stagger: .14, pop: true });
+    const pm = E.inOutCubic(prog(t, 2.25, .65));
+    group.style.transform = `translateY(${-560 * pm}px) scale(${lerp(1, .78, pm)})`;
+    const pp = prog(t, 2.35, .75);
+    vis(ph.root, t >= 2.3);
+    ph.root.style.transform = `translateY(${(1 - E.outBack(pp)) * 1350}px) rotate(${(1 - E.outCubic(pp)) * 8}deg)`;
+    ph.src(Math.max(0, (t - 2.35) * 3));
+  });
+}
+
+// ═════════════════════ ESCENA 2 · El mensaje (4.4 – 11.0) ═════════════════════
+const S2 = Scene(4.4, 11.0, 'light');
+{
+  const bg = blobs(S2.el, ['rgba(227,221,255,.9)', 'rgba(255,221,226,.8)', 'rgba(205,243,217,.7)']);
+  const c1 = caption(S2.el, 'Esto es lo que le pedí 👇', { top: 270, size: 78 });
+  const c2 = caption(S2.el, 'No me dio un texto…', { top: 200, size: 78 });
+  const c3 = caption(S2.el, 'Me dio una [[APP]] 🤯', { top: 300, size: 94, width: 1000 });
+  const panel = h('div', 'panel', S2.el, 'left:80px;top:470px;width:920px;height:1100px;');
+  h('div', 'abs', panel, 'left:0;top:28px;width:920px;text-align:center;font-size:30px;font-weight:800;color:#9B958A;', 'Nuevo chat');
+  h('div', 'abs', panel, 'left:0;top:92px;width:920px;height:2px;background:#F0EAE2;');
+  const msg = 'Hazme unos apuntes de la Unidad 1 para estudiar 📚';
+  const bubble = h('div', 'bubble', panel, 'right:40px;top:130px;max-width:660px;transform-origin:100% 100%;', msg);
+  const tdots = h('div', 'abs tdots', panel, 'left:52px;top:350px;', '<i></i><i></i><i></i>');
+  const card = h('div', 'acard', panel, 'left:40px;top:340px;width:760px;height:560px;transform-origin:50% 50%;');
+  const prevBox = h('div', 'abs', card, 'left:0;top:0;width:754px;height:400px;overflow:hidden;border-bottom:3px solid #ECE5DB;background:var(--cream);');
+  const prevImg = h('img', '', prevBox, 'position:absolute;left:0;top:-8px;width:754px;');
+  prevImg.src = frameURL(9.6);
+  h('div', 'abs', card, 'left:30px;top:426px;width:100px;height:100px;border-radius:28px;background:var(--lime);display:flex;align-items:center;justify-content:center;font-size:54px;', '📚');
+  h('div', 'abs', card, 'left:156px;top:426px;font-size:40px;font-weight:900;', 'Unidad 1: a estudiar');
+  h('div', 'abs', card, 'left:156px;top:480px;font-size:30px;font-weight:700;color:#8C867B;', 'Apuntes · Tarjetas · Juego');
+  const input = h('div', 'inputbar', panel, 'left:30px;top:930px;width:860px;height:140px;');
+  const itext = h('div', 'abs', input, 'left:38px;top:22px;width:660px;font-size:36px;font-weight:700;line-height:1.32;');
+  const send = h('div', 'send', input, 'right:26px;top:26px;', '↑');
+  const tap = h('div', 'ripple', panel, 'left:420px;top:620px;');
+  const tapRing = h('i', '', tap, 'border:6px solid rgba(79,70,229,.85);');
+
+  S2.upd.push(t => {
+    bg(t);
+    capAnim(c1, t, 4.6, 8.15);
+    capAnim(c2, t, 8.35, 10.3);
+    capAnim(c3, t, 8.9, 10.3, { pop: true, stagger: .12 });
+    // tecleo
+    const n = Math.round(clamp((t - 4.85) / 1.6) * [...msg].length);
+    const typed = [...msg].slice(0, n).join('');
+    const sent = t >= 6.65;
+    const caretOn = !sent && Math.floor(t * 2.4) % 2 === 0;
+    itext.innerHTML = sent || n === 0
+      ? `<span style="color:#ABA59A">Escribe un mensaje…</span>` + (caretOn ? '' : '')
+      : typed + (caretOn ? '<span class="caret" style="background:var(--indigo)"></span>' : '');
+    const ps = prog(t, 6.5, .3);
+    send.style.transform = `scale(${1 - .18 * Math.sin(ps * Math.PI)})`;
+    // burbuja
+    if (vis(bubble, sent)) {
+      const p = prog(t, 6.65, .45);
+      bubble.style.transform = `translateY(${(1 - E.outCubic(p)) * 820}px) scale(${lerp(.85, 1, E.outBack(p))})`;
+      bubble.style.opacity = clamp(p * 3);
+    }
+    // escribiendo…
+    if (vis(tdots, t >= 7.15 && t < 8.1)) {
+      [...tdots.children].forEach((d, i) => { d.style.transform = `translateY(${-14 * Math.max(0, Math.sin((t - 7.15) * 9 - i * .9))}px)`; });
+      tdots.style.opacity = clamp((t - 7.15) * 5);
+    }
+    // tarjeta de la app
+    if (vis(card, t >= 8.1)) {
+      const p = prog(t, 8.1, .55), pz = E.inOutCubic(prog(t, 10.3, .65));
+      card.style.transform = `translateY(${(1 - E.outCubic(p)) * 80}px) scale(${lerp(.88, 1, E.outBack(p)) * lerp(1, 2.6, pz)})`;
+      card.style.opacity = clamp(p * 2.5) * (1 - prog(t, 10.6, .35));
+    }
+    panel.style.opacity = 1 - prog(t, 10.35, .3);
+    const pr = (t - 10.05) / .5;
+    if (vis(tap, pr >= 0 && pr <= 1)) { const r = lerp(30, 160, E.outCubic(pr)); tapRing.style.width = tapRing.style.height = r + 'px'; tapRing.style.opacity = 1 - pr; }
+  });
+}
+
+// ═════════════════════ ESCENA 3 · Tres partes (11.0 – 14.6) ═════════════════════
+const S3 = Scene(11.0, 14.6, 'light');
+{
+  const bg = blobs(S3.el, ['rgba(255,239,166,.9)', 'rgba(227,221,255,.9)', 'rgba(255,221,226,.8)']);
+  const title = caption(S3.el, 'Tiene [[3 partes]] 👇', { top: 300, size: 96 });
+  const data = [['1', '📖', 'Apuntes', 'Lees el tema resumido', 'var(--pink)'],
+                ['2', '🃏', 'Tarjetas', 'Repasas con preguntas', 'var(--yellow)'],
+                ['3', '🎮', 'Juego', 'Te pones a prueba', 'var(--lav)']];
+  const cards = data.map((d, i) => {
+    const c = h('div', 'bigcard', S3.el, `left:90px;top:${540 + i * 290}px;width:900px;height:250px;background:${d[4]};`);
+    h('div', 'num', c, 'margin-left:44px;', d[0]);
+    h('div', '', c, 'font-size:96px;margin:0 30px 0 34px;', d[1]);
+    h('div', '', c, '', `<div style="font-size:66px;font-weight:900;line-height:1.05">${d[2]}</div><div style="font-size:37px;font-weight:700;color:rgba(30,34,50,.62);margin-top:6px">${d[3]}</div>`);
+    return c;
+  });
+  S3.upd.push(t => {
+    bg(t);
+    capAnim(title, t, 11.1, 14.1);
+    cards.forEach((c, i) => blockAnim(c, t, 11.45 + i * .35, 14.15 + i * .05, { type: 'left', dout: .4, outType: 'left' }));
+  });
+}
+
+// ═════════════════════ ESCENAS 4-6 · Demo (14.6 – 43.0) ═════════════════════
+const SD = Scene(14.6, 43.0, 'light');
+{
+  const bg = blobs(SD.el, ['rgba(227,221,255,.85)', 'rgba(255,221,226,.75)', 'rgba(213,235,255,.8)']);
+  // pestañas
+  const tabs = h('div', 'tabs', SD.el);
+  const names = [['📖', 'Apuntes'], ['🃏', 'Tarjetas'], ['🎮', 'Juego']];
+  names.forEach((n, i) => h('div', 'pill bgp', tabs, `left:${i * 310}px;`));
+  const ind = h('div', 'ind', tabs);
+  const pills = names.map((n, i) => h('div', 'pill', tabs, `left:${i * 310}px;`, `<span>${n[0]}</span><span>${n[1]}</span>`));
+  const switches = [[14.6, 0], [24.0, 1], [35.5, 2]];
+
+  const ph = Phone(SD.el, { cx: 540, top: 552, w: 736 });
+
+  // pies de texto
+  const C = (txt, a, b, o = {}) => ({ el: caption(SD.el, txt, { top: o.top || 292, size: o.size || 64 }), a, b, o });
+  const caps = [
+    C('Cada página del libro,\n[[resumida]] 📄', 15.0, 17.55),
+    C('[[Colores]], emojis y lo\nimportante resaltado ✨', 17.75, 20.55),
+    C('Y hasta [[esquemas]]:\nDAFO, Kanban, roles…', 20.75, 23.85),
+    C('Delante, una\n[[pregunta]] ❓', 24.15, 25.95),
+    C('La tocas…\ny se [[gira]] 🔄', 26.05, 28.85),
+    C('Tú decides:\n[[Me la sé]] o Repasar', 29.0, 31.45),
+    C('Hay tarjetas de\n[[cada página]] 📚', 31.6, 35.35),
+    C('[[31 preguntas]]\ntipo test 🎯', 35.65, 36.95),
+    C('Si fallas, te explica\n[[por qué]] 💡', 37.1, 39.35),
+    C('Y te marca la [[correcta]]\nen verde ✅', 39.5, 42.85),
+  ];
+
+  const stick1 = h('div', 'sticker', SD.el, 'left:742px;top:500px;background:var(--lime);font-size:40px;', 'Págs. 16 → 23');
+  const ff2 = h('div', 'sticker', SD.el, 'left:820px;top:510px;background:var(--ink);color:var(--lime);font-size:42px;', '⏩ x2');
+  const ff3 = h('div', 'sticker', SD.el, 'left:820px;top:510px;background:var(--ink);color:var(--lime);font-size:42px;', '⏩ x3');
+
+  // toques reales de la grabación
+  [26.15, 28.43, 30.525, 31.435, 32.465, 33.535].forEach(tt => ph.addRipple(tt, 540, 1210));
+  ph.addRipple(36.85, 540, 1078);
+  ph.addRipple(39.97, 540, 1561);
+  ph.addRipple(40.97, 540, 1238);
+  ph.addRipple(42.0, 540, 1400);
+  ph.addBox(29.15, 31.4, 372, 1662, 1046, 1822);
+
+  // tiempo de la grabación según el tiempo del vídeo
+  const segs = [
+    [14.6, 24.0, 0.0, 1],      // apuntes
+    [24.0, 30.1, 9.9, 1],      // tarjetas 1x
+    [30.1, 33.9, 16.0, 2],     // tarjetas 2x
+    [33.9, 35.5, 23.6, 3],     // tarjetas 3x
+    [35.5, 36.0, 28.35, 1],    // pestaña juego
+    [36.0, 37.0, 30.2, 1],     // respuesta 1
+    [37.0, 39.4, 31.5, 0],     // congelado + zoom
+    [39.4, 43.1, 31.85, 1],    // preguntas 2-5
+  ];
+  const srcAt = t => { for (const [a, b, s, r] of segs) if (t < b) return s + Math.max(0, t - a) * r; return 35.5; };
+
+  SD.upd.push(t => {
+    bg(t);
+    blockAnim(tabs, t, 14.7, 99, { type: 'down' });
+    // indicador de pestaña
+    let x = 0, act = 0;
+    for (const [ts, i] of switches) if (t >= ts) {
+      const p = E.outBack(prog(t, ts, .45));
+      const prevI = act; act = i; x = lerp(prevI * 310, i * 310, ts === 14.6 ? 1 : p);
+    }
+    ind.style.transform = `translateX(${x}px)`;
+    pills.forEach((p, i) => { const on = Math.abs(x - i * 310) < 155; p.style.color = on ? '#fff' : 'rgba(30,34,50,.55)'; });
+
+    // teléfono
+    const pp = prog(t, 14.6, .8);
+    ph.root.style.transform = `translateY(${(1 - E.outBack(pp)) * 1400}px)`;
+    ph.src(srcAt(t));
+    // zooms
+    let z = [1, 540, 994];
+    const zA = E.inOutCubic(prog(t, 21.65, .55)) * (1 - E.inOutCubic(prog(t, 23.0, .45)));
+    if (zA > 0) z = [lerp(1, 1.28, zA), 540, 1100];
+    const zB = E.inOutCubic(prog(t, 37.15, .5)) * (1 - E.inOutCubic(prog(t, 38.95, .45)));
+    if (zB > 0) z = [lerp(1, 1.45, zB), 540, 1420];
+    ph.zoom(...z);
+    ph.fxUpdate(t);
+
+    caps.forEach(c => capAnim(c.el, t, c.a, c.b));
+    blockAnim(stick1, t, 15.6, 23.75, { type: 'pop', base: 'rotate(7deg)' });
+    blockAnim(ff2, t, 30.1, 33.75, { type: 'pop', base: 'rotate(-6deg)', dout: .15 });
+    blockAnim(ff3, t, 33.9, 35.35, { type: 'pop', base: 'rotate(-6deg)', din: .3 });
+  });
+}
+
+// ═════════════════════ ESCENA 7 · ¿Cómo es posible? (43.0 – 57.0) ═════════════════════
+const S7 = Scene(43.0, 57.0, 'dark');
+{
+  const bg = blobs(S7.el, ['rgba(79,70,229,.5)', 'rgba(226,247,106,.12)', 'rgba(79,70,229,.3)']);
+  const tWrap = h('div', 'abs', S7.el, 'left:0;top:0;width:1080px;height:1920px;transform-origin:540px 820px;');
+  const title = caption(tWrap, '¿Cómo es [[posible]]? 🤔', { top: 820, size: 112, width: 1000 });
+  const s1 = caption(S7.el, 'Claude no solo escribe texto…', { top: 360, size: 54, weight: 800, color: 'rgba(255,255,255,.72)' });
+  const s2 = caption(S7.el, '…también sabe [[programar]] 💻', { top: 436, size: 62, width: 1020 });
+  const s3 = caption(S7.el, 'Y ese código se convierte…', { top: 360, size: 54, weight: 800, color: 'rgba(255,255,255,.72)' });
+  const s4 = caption(S7.el, '…en una [[app]] que funciona ✨', { top: 436, size: 62, width: 1020 });
+
+  const stage = h('div', 'abs', S7.el, 'left:0;top:0;width:1080px;height:1920px;perspective:2200px;');
+  const code = h('div', 'code', stage, 'left:80px;top:590px;width:920px;height:690px;');
+  code.innerHTML = '<div class="bar"><i style="background:#FF6B6B"></i><i style="background:#FFD166"></i><i style="background:#4ADE80"></i><span>unidad1.html</span></div>';
+  const pre = h('pre', '', code);
+  const T = '#FF8FB1', K = '#B4A7FF', S = '#E2F76A', G = 'rgba(255,255,255,.4)', N = '#E8E9F3', F = '#7DD3FC';
+  const lines = [
+    [['<h1>', T], ['📚 Unidad 1: a estudiar', N], ['</h1>', T]],
+    [['<button>', T], ['📖 Apuntes', N], ['</button>', T]],
+    [['<button>', T], ['🃏 Tarjetas', N], ['</button>', T]],
+    [['<button>', T], ['🎮 Juego', N], ['</button>', T]],
+    [],
+    [['const ', K], ['preguntas', F], [' = [', N], ['/* 31 */', G], ['];', N]],
+    [['function ', K], ['girarTarjeta', F], ['() {', N]],
+    [['  tarjeta.', N], ['classList', F], ['.toggle(', N], ['"girada"', S], [');', N]],
+    [['}', N]],
+  ];
+  const total = lines.reduce((s, l) => s + l.reduce((a, [x]) => a + [...x].length, 0) + 1, 0);
+  const ph = Phone(stage, { cx: 540, top: 600, w: 560 });
+
+  const head = caption(S7.el, 'Lo que pasa [[por dentro]] ⚙️', { top: 190, size: 74 });
+  const steps = [
+    ['1', '📸', 'Le das tu temario', 'fotos, PDF o texto del libro'],
+    ['2', '🧠', 'Lo entiende y lo resume', 'página a página, lo importante'],
+    ['3', '💻', 'Escribe el código', 'apuntes + tarjetas + juego'],
+    ['4', '✨', 'Te abre la app', 'en el chat, sin instalar nada'],
+  ].map((d, i) => {
+    const el = h('div', 'step', S7.el, `top:${390 + i * 240}px;`);
+    el.innerHTML = `<div class="ico">${d[1]}<b>${d[0]}</b></div><div class="t1">${d[2]}</div><div class="t2">${d[3]}</div>`;
+    return el;
+  });
+  const stepT = [51.3, 52.15, 53.0, 53.85];
+
+  S7.upd.push(t => {
+    bg(t);
+    // título
+    capAnim(title, t, 43.25, 50.7, { stagger: .1, pop: true });
+    const pm = E.inOutCubic(prog(t, 44.75, .5));
+    tWrap.style.transform = `translateY(${(170 - 820) * pm}px) scale(${lerp(1, .62, pm)})`;
+    capAnim(s1, t, 45.2, 49.1);
+    capAnim(s2, t, 45.8, 49.1);
+    capAnim(s3, t, 49.3, 50.7);
+    capAnim(s4, t, 49.75, 50.7);
+    // código
+    const pf = prog(t, 49.0, .28);
+    if (blockAnim(code, t, 46.1, 99, { type: 'up' }) && t < 49.3) {
+      code.style.transform += ` rotateY(${E.inCubic(pf) * 90}deg)`;
+      let left = Math.floor(clamp((t - 46.4) / 2.4) * total);
+      let html = '', caretDone = false;
+      for (const l of lines) {
+        for (const [txt, col] of l) {
+          const ch = [...txt]; const k = Math.min(ch.length, left); left -= k;
+          if (k > 0) html += `<span style="color:${col}">${ch.slice(0, k).join('').replace(/</g, '&lt;')}</span>`;
+        }
+        if (left <= 0 && !caretDone) { html += (Math.floor(t * 2.6) % 2 === 0 || t < 48.8 ? '<span class="caret"></span>' : ''); caretDone = true; }
+        if (left > 0) { html += '\n'; left -= 1; } else html += '\n';
+      }
+      pre.innerHTML = html;
+    } else vis(code, false);
+    // teléfono que sustituye al código
+    if (vis(ph.root, t >= 49.28 && t < 51.2)) {
+      const pin = E.outCubic(prog(t, 49.28, .32)), pout = E.inCubic(prog(t, 50.7, .45));
+      ph.root.style.transform = `rotateY(${(1 - pin) * -90}deg) translateY(${pout * 1500}px)`;
+      ph.src((t - 49.28) * 2.2);
+      ph.zoom(1, 540, 994); ph.fxUpdate(t);
+    }
+    // pasos
+    capAnim(head, t, 51.0, 99);
+    steps.forEach((el, i) => {
+      blockAnim(el, t, stepT[i], 99, { type: 'left' });
+      const on = t >= stepT[i] && (i === 3 || t < stepT[i + 1]);
+      el.style.borderColor = on ? 'rgba(226,247,106,.85)' : 'rgba(255,255,255,.10)';
+      el.style.background = on ? 'rgba(226,247,106,.08)' : 'rgba(255,255,255,.06)';
+    });
+  });
+}
+
+// ═════════════════════ ESCENA 8 · Por qué funciona (57.0 – 62.0) ═════════════════════
+const S8 = Scene(57.0, 62.0, 'light');
+{
+  const bg = blobs(S8.el, ['rgba(205,243,217,.85)', 'rgba(255,239,166,.85)', 'rgba(227,221,255,.85)']);
+  const title = caption(S8.el, '¿Y por qué\n[[funciona]]? 🤓', { top: 230, size: 88 });
+  const rows = [['📖', 'Lees', '→ lo entiendes', 'var(--pink)'],
+                ['🃏', 'Repasas', '→ lo memorizas', 'var(--yellow)'],
+                ['🎮', 'Te pones a prueba', '→ no se te olvida', 'var(--lav)']].map((d, i) => {
+    const el = h('div', 'row', S8.el, `top:${500 + i * 220}px;background:${d[3]};`);
+    el.innerHTML = `<div class="e">${d[0]}</div><div class="t1">${d[1]}</div><div class="t2">${d[2]}</div>`;
+    return el;
+  });
+  const chip = h('div', 'chip', S8.el, 'top:1200px;', '🧠 Se llama <span class="hl">recuerdo activo</span>');
+  const note = caption(S8.el, 'Intentar recordar fija mucho más\nque solo volver a leer', { top: 1340, size: 40, weight: 700, color: 'rgba(30,34,50,.62)', lh: 1.3 });
+  S8.upd.push(t => {
+    bg(t);
+    capAnim(title, t, 57.25, 99);
+    rows.forEach((r, i) => blockAnim(r, t, 57.7 + i * .45, 99, { type: 'left' }));
+    blockAnim(chip, t, 59.2, 99, { type: 'pop', base: 'translateX(-50%)' });
+    capAnim(note, t, 59.75, 99, { stagger: .04 });
+  });
+}
+
+// ═════════════════════ ESCENA 9 · Cierre (62.0 – 67.0) ═════════════════════
+const S9 = Scene(62.0, 67.01, 'dark');
+{
+  const bg = blobs(S9.el, ['rgba(79,70,229,.55)', 'rgba(226,247,106,.15)', 'rgba(255,143,177,.2)']);
+  const l1 = caption(S9.el, 'La próxima vez,', { top: 290, size: 82 });
+  const l2 = caption(S9.el, 'no pidas solo apuntes.', { top: 392, size: 82, color: 'rgba(255,255,255,.6)' });
+  const l3 = caption(S9.el, 'Pide una [[app]]\npara estudiar 🚀', { top: 560, size: 104, width: 1000 });
+  const lab = caption(S9.el, 'Prueba a pedirle:', { top: 900, size: 38, weight: 800, color: 'var(--lime)' });
+  const box = h('div', 'abs', S9.el, 'left:90px;top:970px;width:900px;height:250px;border-radius:38px;background:rgba(255,255,255,.07);border:3px solid rgba(226,247,106,.55);');
+  const btxt = h('div', 'abs', box, 'left:44px;top:36px;width:812px;font-size:46px;font-weight:800;line-height:1.3;color:#fff;');
+  const prompt = '«Hazme apuntes, tarjetas y un juego de preguntas de este tema»';
+  const foot = caption(S9.el, 'Hecho con Claude', { top: 1310, size: 36, weight: 800, color: 'rgba(255,255,255,.45)' });
+  S9.upd.push(t => {
+    bg(t);
+    capAnim(l1, t, 62.25, 99);
+    capAnim(l2, t, 62.65, 99);
+    capAnim(l3, t, 63.2, 99, { pop: true, stagger: .1 });
+    capAnim(lab, t, 63.95, 99);
+    if (blockAnim(box, t, 64.05, 99, { type: 'pop' })) {
+      const n = Math.round(clamp((t - 64.3) / 1.4) * [...prompt].length);
+      const caret = Math.floor(t * 2.6) % 2 === 0 || t < 65.7;
+      btxt.innerHTML = [...prompt].slice(0, n).join('') + (caret ? '<span class="caret"></span>' : '');
+    }
+    capAnim(foot, t, 65.6, 99);
+  });
+}
+
+// ───────────────────────── transiciones ─────────────────────────
+const wipes = [[4.4, '#4F46E5', '#E2F76A'], [43.0, '#E2F76A', '#4F46E5'], [57.0, '#4F46E5', '#E2F76A'], [62.0, '#E2F76A', '#4F46E5']];
+const wA = document.getElementById('wipeA'), wB = document.getElementById('wipeB');
+function wipeUpdate(t) {
+  let shown = false;
+  for (const [tc, ca, cb] of wipes) {
+    if (t < tc - .4 || t > tc + .45) continue;
+    shown = true;
+    const pos = (tt) => tt < tc ? (1 - E.inOutCubic(prog(tt, tc - .34, .34))) * 100 : -E.inOutCubic(prog(tt, tc, .34)) * 100;
+    wA.style.background = ca; wB.style.background = cb;
+    wA.style.transform = `translateY(${pos(t)}%)`;
+    wB.style.transform = `translateY(${pos(t - .07)}%)`;
+  }
+  vis(wA, shown); vis(wB, shown);
+}
+
+// ───────────────────────── render ─────────────────────────
+window.renderFrame = async function (t) {
+  for (const S of scenes) {
+    const on = t >= S.a && t < S.b;
+    vis(S.el, on);
+    if (on) S.upd.forEach(f => f(t));
+  }
+  wipeUpdate(t);
+  document.getElementById('fade').style.opacity = E.inCubic(prog(t, 66.3, .7));
+  const waits = [];
+  for (const P of phones) {
+    const onScreen = P.root.closest('.scene').style.visibility === 'visible' && P.root.style.visibility !== 'hidden';
+    if (onScreen && P.want && P.want !== P.cur) {
+      P.cur = P.want; P.img.src = P.want;
+      waits.push(P.img.decode().catch(() => {}));
+    }
+  }
+  await Promise.all(waits);
+  return true;
+};
+window.META = { W, H, FPS, DUR };
+window.ready = document.fonts.ready.then(() => Promise.all([...document.images].map(i => i.decode().catch(() => {}))));
+</script>
+</body>
+</html>
